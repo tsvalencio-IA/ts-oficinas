@@ -1,639 +1,248 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Portal do Cliente</title>
-<link rel="stylesheet" href="css/design.css">
-<style>
-body { overflow-y: auto; }
-
-.portal-bg {
-  min-height: 100vh;
-  position: relative;
-  z-index: 1;
-}
-
-/* Login portal */
-.portal-login {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.portal-login-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--surf-1);
-  border: 1px solid var(--border-med);
-  border-radius: var(--r-2xl);
-  padding: 32px 28px;
-  position: relative;
-}
-
-.portal-login-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 15%; right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--brand), transparent);
-}
-
-/* Header */
-.portal-header {
-  background: var(--surf-0);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
-.portal-body {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 20px 16px;
-}
-
-/* OS Card */
-.os-card {
-  background: var(--surf-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-
-.os-card-header {
-  padding: 16px 20px;
-  background: var(--surf-2);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.os-card-body { padding: 20px; }
-
-/* Progress stepper */
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  position: relative;
-  margin: 20px 0;
-}
-
-.step {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-  z-index: 1;
-}
-
-.step-dot {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  border: 2px solid;
-  background: var(--surf-1);
-  transition: var(--t-mid);
-  font-weight: 700;
-}
-
-.step.done   .step-dot { background: var(--success); border-color: var(--success); color: #000; }
-.step.active .step-dot { background: var(--brand-dim); border-color: var(--brand); color: var(--brand); box-shadow: 0 0 14px var(--brand-glow); }
-.step.pending .step-dot { border-color: var(--border-med); color: var(--text-muted); }
-
-.step-label {
-  font-family: var(--ff-mono);
-  font-size: 0.52rem;
-  letter-spacing: 0.04em;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.step.done .step-label   { color: var(--success); }
-.step.active .step-label { color: var(--brand); font-weight: 700; }
-
-.step-line {
-  position: absolute;
-  top: 15px; left: 0; right: 0;
-  height: 2px;
-  background: var(--border);
-  z-index: 0;
-}
-
-.step-line-fill {
-  position: absolute;
-  top: 15px; left: 0;
-  height: 2px;
-  background: var(--success);
-  z-index: 0;
-  transition: width 0.6s ease;
-}
-
-/* Info grid */
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.info-item {
-  background: var(--surf-2);
-  border-radius: var(--r-lg);
-  padding: 12px 14px;
-}
-
-.info-item-label {
-  font-family: var(--ff-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.info-item-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* Media preview */
-.media-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.media-preview-item {
-  aspect-ratio: 1;
-  border-radius: var(--r-md);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surf-2);
-}
-
-.media-preview-item img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
-
-/* Chat no portal */
-.portal-chat { margin-top: 16px; }
-
-.portal-chat-messages {
-  background: var(--surf-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  min-height: 200px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.portal-chat-input {
-  background: var(--surf-2);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 var(--r-xl) var(--r-xl);
-  padding: 10px;
-  display: flex;
-  gap: 8px;
-}
-
-/* Aprovação de orçamento */
-.orcamento-alert {
-  background: var(--warn-dim);
-  border: 1px solid rgba(245,158,11,0.3);
-  border-radius: var(--r-lg);
-  padding: 16px 18px;
-  margin-top: 14px;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Portal do Cliente — Acompanhamento</title>
+  
+  <link rel="stylesheet" href="css/design.css">
+  <style>
+    /* Estilos mobile first para o Cliente */
+    body { background-color: var(--bg-body); padding-bottom: 80px; }
+    .portal-header { background: var(--brand); color: white; padding: 20px; text-align: center; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .portal-card { background: var(--bg-card); padding: 20px; border-radius: 12px; margin: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    
+    .timeline { border-left: 2px solid var(--brand); margin: 20px 0; padding-left: 15px; }
+    .timeline-item { margin-bottom: 15px; position: relative; }
+    .timeline-item::before { content: ''; position: absolute; left: -21px; top: 0; width: 10px; height: 10px; background: var(--brand); border-radius: 50%; border: 2px solid var(--bg-card); }
+    
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1px)); gap: 10px; margin-top: 15px; }
+    .gallery img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; cursor: pointer; }
+    
+    .chat-box { background: var(--bg-body); border-radius: 12px; padding: 15px; height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { max-width: 80%; padding: 10px; border-radius: 12px; font-size: 0.9rem; }
+    .msg.oficina { background: var(--bg-card); align-self: flex-start; border: 1px solid var(--border); }
+    .msg.cliente { background: var(--brand); color: white; align-self: flex-end; }
+    
+    .login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  </style>
 </head>
-<body>
-<div id="toast-container"></div>
+<body class="dark-theme">
 
-<!-- LOGIN PORTAL -->
-<div id="loginView" class="portal-bg">
-  <div class="portal-login">
-    <div class="portal-login-card">
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="width:52px;height:52px;border-radius:var(--r-xl);background:var(--brand-dim);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:1.4rem;font-weight:800;color:var(--brand);margin:0 auto 12px" id="portalLogoMark">J</div>
-        <div style="font-family:var(--ff-display);font-size:1.2rem;font-weight:700" id="portalOficinaName">Portal do Cliente</div>
-        <div style="font-family:var(--ff-mono);font-size:0.62rem;color:var(--text-muted);margin-top:4px;letter-spacing:0.08em">ACOMPANHE SEU VEÍCULO</div>
+  <div id="loginSection" class="login-container">
+    <div class="logo-mark" style="font-size: 3rem; margin-bottom: 20px;">J</div>
+    <h2 style="margin-bottom: 5px;">Portal do Cliente</h2>
+    <p style="color: var(--text-muted); margin-bottom: 30px;">Acompanhe o serviço do seu veículo</p>
+    
+    <div class="form-group" style="width: 100%; max-width: 350px;">
+      <label>Código da O.S. (Ex: 123456)</label>
+      <input type="text" id="osCodigo" class="input input-xl" placeholder="Digite o número da OS" style="text-align: center; letter-spacing: 2px;">
+    </div>
+    
+    <button class="btn btn-brand btn-xl" style="width: 100%; max-width: 350px; margin-top: 20px;" onclick="buscarOS()">Acessar Ordem de Serviço</button>
+    <div id="loginError" style="color: #ef4444; margin-top: 15px; display: none;">O.S. não encontrada.</div>
+  </div>
+
+  <div id="portalSection" style="display: none;">
+    <header class="portal-header">
+      <h2 id="pOficinaNome">Minha Oficina</h2>
+      <p id="pVeiculo">Carregando veículo...</p>
+      <div style="margin-top: 15px; font-size: 1.5rem; font-weight: bold;" id="pStatus">STATUS</div>
+    </header>
+
+    <div class="portal-card">
+      <h3>Resumo do Orçamento</h3>
+      <p style="color: var(--text-muted); margin-bottom: 15px;">Defeito relatado: <span id="pDefeito"></span></p>
+      <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold; border-top: 1px solid var(--border); padding-top: 15px;">
+        <span>Total:</span>
+        <span id="pTotal">R$ 0,00</span>
       </div>
-
-      <div id="portalLoginErr" class="login-err">Credenciais inválidas.</div>
-
-      <div class="form-group">
-        <label class="form-label">Login</label>
-        <input class="input input-mono" id="pLogin" placeholder="seu.login" autocomplete="off">
+      
+      <div id="areaAprovacao" style="display: none; margin-top: 20px;">
+        <button class="btn btn-success btn-full" onclick="aprovarOrcamento()">✅ Aprovar Orçamento</button>
+        <button class="btn btn-ghost btn-full" style="margin-top: 10px; color: #ef4444;" onclick="recusarOrcamento()">❌ Recusar</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">PIN de acesso</label>
-        <input class="input" id="pPin" type="password" placeholder="••••••">
-      </div>
-      <button class="btn btn-brand btn-xl btn-full" onclick="portalLogin()">Acessar Portal</button>
+    </div>
 
-      <div style="text-align:center;margin-top:16px;font-size:0.75rem;color:var(--text-muted)">
-        Seu login e PIN foram fornecidos pela oficina
+    <div class="portal-card">
+      <h3>Laudo Fotográfico</h3>
+      <div class="gallery" id="pGaleria">
+        </div>
+    </div>
+
+    <div class="portal-card">
+      <h3>Histórico (Timeline)</h3>
+      <div class="timeline" id="pTimeline">
+        </div>
+    </div>
+
+    <div class="portal-card">
+      <h3>Fale com o Mecânico</h3>
+      <div class="chat-box" id="pChat">
+        </div>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <input type="text" id="chatInput" class="input" placeholder="Digite uma mensagem...">
+        <button class="btn btn-brand" onclick="enviarMsgCliente()">Enviar</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- DASHBOARD DO CLIENTE -->
-<div id="portalView" style="display:none" class="portal-bg">
-  <div class="portal-header">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:28px;height:28px;border-radius:var(--r-md);background:var(--brand-dim);border:1px solid rgba(59,130,246,0.2);display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:0.85rem;font-weight:800;color:var(--brand)" id="portalHdrMark">J</div>
-      <div>
-        <div style="font-family:var(--ff-display);font-size:0.85rem;font-weight:700" id="portalHdrName">Portal do Cliente</div>
-        <div style="font-family:var(--ff-mono);font-size:0.55rem;color:var(--brand)" id="portalClienteNome">Carregando...</div>
-      </div>
-    </div>
-    <button class="btn btn-ghost btn-sm" onclick="portalLogout()">Sair</button>
-  </div>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  
+  <script src="js/config.js"></script>
 
-  <div class="portal-body">
-    <div id="portalContent">
-      <!-- Preenchido pelo JS -->
-    </div>
-  </div>
-</div>
+  <script>
+    let db;
+    let currentOS = null;
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="js/config.js"></script>
-<script src="js/ui.js"></script>
-<script>
-// ============================================================
-// PORTAL DO CLIENTE
-// ============================================================
-const db = window.initFirebase();
+    document.addEventListener('DOMContentLoaded', () => {
+      db = window.initFirebase();
+    });
 
-let P = {
-  clienteId: null,
-  tenantId:  null,
-  cliente:   null,
-  oficina:   null
-};
+    // Buscar OS pelo número
+    async function buscarOS() {
+      const num = document.getElementById('osCodigo').value.trim();
+      if (!num) return;
 
-// Pré-carrega tenant via URL se tiver
-const params = new URLSearchParams(window.location.search);
-const _tenantSlug = params.get('tenant') || params.get('t') || null;
-const _preOsId    = params.get('id')     || null;
+      const btn = document.querySelector('.login-container .btn');
+      btn.textContent = 'A procurar...';
+      document.getElementById('loginError').style.display = 'none';
 
-// Carrega brand do tenant se for direto pelo link
-if (_tenantSlug) _carregarBrandTenant(_tenantSlug);
+      try {
+        const snap = await db.collectionGroup('ordens_servico').where('numero', '==', num).get();
+        
+        if (snap.empty) {
+          document.getElementById('loginError').style.display = 'block';
+          btn.textContent = 'Acessar Ordem de Serviço';
+          return;
+        }
 
-async function _carregarBrandTenant(tenantId) {
-  try {
-    const snap = await db.collection('oficinas').doc(tenantId).get();
-    if (!snap.exists) return;
-    const d = snap.data();
-    const brand = {
-      name:       d.brandName    || d.nomeFantasia,
-      logoLetter: d.brandLetter  || (d.nomeFantasia||'J').charAt(0).toUpperCase(),
-      color:      d.brandColor   || '#3B82F6',
-      tagline:    d.brandTagline || 'Gestão Automotiva',
-      footer:     d.brandFooter  || `${d.nomeFantasia} · JARVIS ERP`
-    };
-    brand.colorDim = `rgba(${_hexR(brand.color)},${_hexG(brand.color)},${_hexB(brand.color)},0.12)`;
-    window.aplicarBrand(brand);
-    document.getElementById('portalOficinaName').textContent = d.nomeFantasia || 'Portal do Cliente';
-    document.getElementById('portalLogoMark').textContent = brand.logoLetter;
-    document.getElementById('portalHdrMark').textContent  = brand.logoLetter;
-    document.getElementById('portalHdrName').textContent  = d.nomeFantasia || 'Portal do Cliente';
-    P.tenantId = tenantId;
-    P.oficina  = d;
-  } catch(e) {}
-}
+        currentOS = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        
+        // Iniciar listeners em tempo real
+        escutarOS();
+        escutarChat();
 
-// ============================================================
-// LOGIN
-// ============================================================
-document.getElementById('pPin').addEventListener('keydown', e => { if (e.key === 'Enter') portalLogin(); });
-document.getElementById('pLogin').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('pPin').focus(); });
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('portalSection').style.display = 'block';
 
-async function portalLogin() {
-  const login = document.getElementById('pLogin').value.trim();
-  const pin   = document.getElementById('pPin').value.trim();
-  const err   = document.getElementById('portalLoginErr');
-  err.style.display = 'none';
-
-  if (!login || !pin) { err.textContent = 'Preencha login e PIN.'; err.style.display='block'; return; }
-
-  const btn = document.querySelector('#loginView .btn-brand');
-  btn.innerHTML = '<div class="spinner"></div> Verificando...';
-  btn.disabled = true;
-
-  try {
-    let q = db.collection('clientes').where('login', '==', login);
-    if (P.tenantId) q = q.where('tenantId', '==', P.tenantId);
-    const snap = await q.get();
-
-    if (snap.empty) throw new Error('Usuário não encontrado.');
-    const doc = snap.docs[0];
-    const c   = doc.data();
-    if (c.pin !== pin) throw new Error('PIN inválido.');
-
-    P.clienteId = doc.id;
-    P.tenantId  = c.tenantId;
-    P.cliente   = { id: doc.id, ...c };
-
-    // Carrega oficina se não tiver
-    if (!P.oficina) {
-      const ofSnap = await db.collection('oficinas').doc(P.tenantId).get();
-      if (ofSnap.exists) {
-        P.oficina = ofSnap.data();
-        await _carregarBrandTenant(P.tenantId);
+      } catch (e) {
+        console.error(e);
+        document.getElementById('loginError').textContent = 'Erro ao conectar. Tente novamente.';
+        document.getElementById('loginError').style.display = 'block';
+        btn.textContent = 'Acessar Ordem de Serviço';
       }
     }
 
-    document.getElementById('portalClienteNome').textContent = c.nome;
-    document.getElementById('loginView').style.display  = 'none';
-    document.getElementById('portalView').style.display = 'block';
+    // Escutar mudanças na OS em tempo real
+    function escutarOS() {
+      db.collection('ordens_servico').doc(currentOS.id).onSnapshot(doc => {
+        const os = doc.data();
+        currentOS = { id: doc.id, ...os };
+        
+        document.getElementById('pVeiculo').textContent = `${os.veiculoModelo || 'Veículo'} - ${os.veiculoPlaca || ''}`;
+        document.getElementById('pStatus').textContent = (os.status || 'Em Avaliação').toUpperCase();
+        document.getElementById('pDefeito').textContent = os.defeitoRelatado || 'Não informado';
+        
+        // Formatar Moeda
+        const totalF = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(os.total || 0);
+        document.getElementById('pTotal').textContent = totalF;
 
-    _iniciarPortal();
+        // Regra de Aprovação
+        const areaAprovacao = document.getElementById('areaAprovacao');
+        if (os.status === 'Aguardando Aprovação') {
+          areaAprovacao.style.display = 'block';
+        } else {
+          areaAprovacao.style.display = 'none';
+        }
 
-  } catch(e) {
-    err.textContent = e.message;
-    err.style.display = 'block';
-    btn.innerHTML = 'Acessar Portal';
-    btn.disabled = false;
-  }
-}
+        // Renderizar Fotos Cloudinary
+        const galeria = document.getElementById('pGaleria');
+        if (os.fotos && os.fotos.length > 0) {
+          galeria.innerHTML = os.fotos.map(f => `<a href="${f.url}" target="_blank"><img src="${f.url}" alt="Foto"></a>`).join('');
+        } else {
+          galeria.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">Sem fotos em anexo.</span>';
+        }
 
-function portalLogout() {
-  P = { clienteId: null, tenantId: null, cliente: null, oficina: null };
-  document.getElementById('loginView').style.display  = 'block';
-  document.getElementById('portalView').style.display = 'none';
-  document.getElementById('portalLoginErr').style.display = 'none';
-  document.getElementById('pLogin').value = '';
-  document.getElementById('pPin').value   = '';
-}
-
-// ============================================================
-// PORTAL PRINCIPAL
-// ============================================================
-function _iniciarPortal() {
-  // Ouve as OS do cliente em tempo real
-  db.collection('ordens_servico')
-    .where('tenantId', '==', P.tenantId)
-    .where('clienteId', '==', P.clienteId)
-    .onSnapshot(snap => {
-      const osList = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.updatedAt || '') > (a.updatedAt || '') ? 1 : -1);
-      _renderPortal(osList);
-    });
-
-  // Ouve mensagens
-  db.collection('mensagens')
-    .where('tenantId', '==', P.tenantId)
-    .where('clienteId', '==', P.clienteId)
-    .onSnapshot(snap => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(a.ts||0)-(b.ts||0));
-      _renderChat(msgs);
-    });
-}
-
-function _renderPortal(osList) {
-  const content = document.getElementById('portalContent');
-  const STEPS = ['Aguardando','Orcamento','Aprovado','Andamento','Concluido'];
-  const STEP_LABELS = {
-    Aguardando: 'Triagem',
-    Orcamento:  'Orçamento',
-    Aprovado:   'Aprovado',
-    Andamento:  'Em Serviço',
-    Concluido:  'Pronto'
-  };
-
-  if (!osList.length) {
-    content.innerHTML = `
-      <div style="text-align:center;padding:48px 20px">
-        <div style="font-size:2.5rem;margin-bottom:12px">🚗</div>
-        <div style="font-family:var(--ff-display);font-size:1rem;font-weight:700;color:var(--text-secondary)">Nenhuma O.S. no momento</div>
-        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:6px">Quando você levar seu veículo, ele aparecerá aqui.</div>
-      </div>
-      ${_chatHTML()}
-    `;
-    _bindChat();
-    return;
-  }
-
-  content.innerHTML = osList.map(os => {
-    const statusIdx = STEPS.indexOf(os.status);
-    const isConcluida = os.status === 'Concluido';
-    const isOrcamento = os.status === 'Orcamento';
-
-    // Stepper
-    const stepperHTML = `
-      <div style="position:relative">
-        <div class="step-line"></div>
-        <div class="step-line-fill" style="width:${Math.max(0, (statusIdx / (STEPS.length-1)) * 100)}%"></div>
-        <div class="stepper">
-          ${STEPS.map((s, i) => {
-            const cls = i < statusIdx ? 'done' : i === statusIdx ? 'active' : 'pending';
-            const icon = i < statusIdx ? '✓' : (i + 1).toString();
-            return `<div class="step ${cls}">
-              <div class="step-dot">${icon}</div>
-              <div class="step-label">${STEP_LABELS[s] || s}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    `;
-
-    // Alerta orçamento
-    const orcAlerta = isOrcamento ? `
-      <div class="orcamento-alert">
-        <div style="font-family:var(--ff-display);font-weight:700;color:var(--warn);margin-bottom:6px">💰 Orçamento aguardando aprovação</div>
-        <div style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px">
-          Valor do serviço: <strong style="color:var(--text-primary)">${_moeda(os.total)}</strong>
-        </div>
-        <div style="display:flex;gap:10px">
-          <button class="btn btn-brand" onclick="_aprovarOrcamento('${os.id}')">✓ Aprovar</button>
-          <button class="btn btn-danger" onclick="_recusarOrcamento('${os.id}')">✕ Recusar</button>
-        </div>
-      </div>
-    ` : '';
-
-    // Peças
-    const pecasHTML = os.pecas?.length ? `
-      <div style="margin-top:14px">
-        <div class="t-label" style="margin-bottom:8px">Serviços e Peças</div>
-        <div style="background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden">
-          ${os.pecas.map(p => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">
-              <div style="font-size:0.84rem">${p.desc || '—'} × ${p.qtd}</div>
-              <div style="font-family:var(--ff-mono);font-size:0.82rem;color:var(--success)">${_moeda(p.qtd * p.venda)}</div>
+        // Renderizar Timeline (Auditoria)
+        const timeline = document.getElementById('pTimeline');
+        if (os.auditoria && os.auditoria.length > 0) {
+          const acts = [...os.auditoria].reverse();
+          timeline.innerHTML = acts.map(a => `
+            <div class="timeline-item">
+              <span style="font-size:0.7rem; color:var(--brand)">${new Date(a.data).toLocaleString('pt-BR')}</span><br>
+              <span style="font-size:0.9rem">${a.acao}</span>
             </div>
-          `).join('')}
-          ${os.maoObra ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)"><div style="font-size:0.84rem">Mão de Obra</div><div style="font-family:var(--ff-mono);font-size:0.82rem;color:var(--success)">${_moeda(os.maoObra)}</div></div>` : ''}
-        </div>
-        ${os.total ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--success-dim);border-radius:0 0 var(--r-lg) var(--r-lg);border:1px solid rgba(34,211,160,0.2);border-top:none"><span style="font-family:var(--ff-mono);font-size:0.7rem;color:var(--text-muted)">TOTAL</span><span style="font-family:var(--ff-display);font-size:1.3rem;font-weight:800;color:var(--success)">${_moeda(os.total)}</span></div>` : ''}
-      </div>
-    ` : '';
+          `).join('');
+        }
+      });
+    }
 
-    // Fotos
-    const fotoHTML = os.media?.length ? `
-      <div style="margin-top:14px">
-        <div class="t-label" style="margin-bottom:8px">Fotos do Serviço (${os.media.length})</div>
-        <div class="media-preview-grid">
-          ${os.media.map(m => m.type !== 'video'
-            ? `<div class="media-preview-item"><img src="${m.url}" onclick="window.open('${m.url}','_blank')" loading="lazy"></div>`
-            : `<div class="media-preview-item" style="cursor:pointer" onclick="window.open('${m.url}','_blank')"><div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:1.5rem">▶️</div></div>`
-          ).join('')}
-        </div>
-      </div>
-    ` : '';
+    // Aprovar Orçamento (Ação do Cliente)
+    async function aprovarOrcamento() {
+      if (!confirm("Deseja realmente APROVAR este orçamento? O mecânico será notificado.")) return;
+      
+      try {
+        await db.collection('ordens_servico').doc(currentOS.id).update({
+          status: 'Aprovado',
+          updatedAt: new Date().toISOString(),
+          auditoria: firebase.firestore.FieldValue.arrayUnion({
+            data: new Date().toISOString(),
+            usuario: 'Cliente (Portal)',
+            acao: 'O.S. Aprovada pelo cliente via Portal B2C.'
+          })
+        });
+        alert('Orçamento aprovado com sucesso! A oficina já foi notificada.');
+      } catch(e) {
+        alert('Erro ao aprovar.');
+      }
+    }
 
-    // Entrega
-    const entregaHTML = isConcluida ? `
-      <div style="background:var(--success-dim);border:1px solid rgba(34,211,160,0.3);border-radius:var(--r-lg);padding:14px 16px;margin-top:14px;display:flex;align-items:center;gap:12px">
-        <div style="font-size:1.5rem">🎉</div>
-        <div>
-          <div style="font-family:var(--ff-display);font-weight:700;color:var(--success)">Veículo Pronto!</div>
-          <div style="font-size:0.82rem;color:var(--text-secondary)">Seu veículo está pronto para retirada em ${P.oficina?.nomeFantasia || 'nossa oficina'}.</div>
-        </div>
-      </div>
-    ` : '';
+    async function recusarOrcamento() {
+      if (!confirm("Tem a certeza que deseja RECUSAR o orçamento?")) return;
+      await db.collection('ordens_servico').doc(currentOS.id).update({
+        status: 'Finalizado',
+        updatedAt: new Date().toISOString(),
+        auditoria: firebase.firestore.FieldValue.arrayUnion({
+          data: new Date().toISOString(),
+          usuario: 'Cliente (Portal)',
+          acao: 'Orçamento RECUSADO pelo cliente.'
+        })
+      });
+    }
 
-    return `
-      <div class="os-card">
-        <div class="os-card-header">
-          <div>
-            <div style="font-family:var(--ff-mono);font-size:0.72rem;color:var(--text-muted);margin-bottom:2px">OS #${os.id.slice(-6).toUpperCase()}</div>
-            <div style="font-family:var(--ff-display);font-size:1rem;font-weight:700">${os.tipoVeiculo === 'bicicleta' ? '🚲' : os.tipoVeiculo === 'moto' ? '🏍️' : '🚗'} ${os.desc?.substring(0,40) || 'Serviço'}${os.desc?.length > 40 ? '...' : ''}</div>
-          </div>
-          <span class="badge ${_osBadgeClass(os.status)}">${STEP_LABELS[os.status] || os.status}</span>
-        </div>
-        <div class="os-card-body">
-          ${stepperHTML}
-          ${orcAlerta}
-          ${entregaHTML}
-
-          <div class="info-grid">
-            <div class="info-item">
-              <div class="info-item-label">Data de Entrada</div>
-              <div class="info-item-value">${_dtBr(os.data)}</div>
+    // Chat
+    function escutarChat() {
+      db.collection('mensagens')
+        .where('osId', '==', currentOS.id)
+        .onSnapshot(snap => {
+          const msgs = snap.docs.map(d => d.data()).sort((a, b) => a.ts - b.ts);
+          const box = document.getElementById('pChat');
+          box.innerHTML = msgs.map(m => `
+            <div class="msg ${m.sender === 'cliente' ? 'cliente' : 'oficina'}">
+              <strong>${m.sender === 'cliente' ? 'Você' : 'Oficina'}:</strong> ${m.texto}
             </div>
-            <div class="info-item">
-              <div class="info-item-label">KM</div>
-              <div class="info-item-value">${os.km ? Number(os.km).toLocaleString('pt-BR') + ' km' : '—'}</div>
-            </div>
-          </div>
+          `).join('');
+          box.scrollTop = box.scrollHeight;
+        });
+    }
 
-          ${pecasHTML}
-          ${fotoHTML}
-        </div>
-      </div>
-    `;
-  }).join('') + _chatHTML();
+    async function enviarMsgCliente() {
+      const input = document.getElementById('chatInput');
+      const txt = input.value.trim();
+      if (!txt) return;
 
-  _bindChat();
-}
-
-function _chatHTML() {
-  return `
-    <div class="os-card portal-chat">
-      <div class="os-card-header">
-        <div style="font-family:var(--ff-display);font-weight:700">💬 Fale com a Oficina</div>
-        <div class="status-dot online"></div>
-      </div>
-      <div class="portal-chat-messages" id="portalChatMsgs">
-        <div style="text-align:center;color:var(--text-muted);font-size:0.78rem;padding:16px">
-          Envie uma mensagem para a oficina
-        </div>
-      </div>
-      <div class="portal-chat-input">
-        <input class="input" id="portalChatInput" placeholder="Digite sua mensagem..." style="flex:1">
-        <button class="btn btn-brand" onclick="_enviarPortalMsg()" id="btnPortalEnviar">Enviar</button>
-      </div>
-    </div>
-  `;
-}
-
-function _bindChat() {
-  const inp = document.getElementById('portalChatInput');
-  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _enviarPortalMsg(); } });
-}
-
-function _renderChat(msgs) {
-  const container = document.getElementById('portalChatMsgs');
-  if (!container) return;
-  if (!msgs.length) return;
-  container.innerHTML = msgs.map(m => {
-    const t   = m.ts ? new Date(m.ts).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '';
-    const dir = m.sender === 'cliente' ? 'outgoing' : 'incoming';
-    return `<div class="chat-msg ${dir}">${m.msg}<div class="msg-time">${t}</div></div>`;
-  }).join('');
-  container.scrollTop = container.scrollHeight;
-  // Marca como lidas
-  msgs.filter(m => m.sender === 'admin' && !m.lidaCliente)
-    .forEach(m => db.collection('mensagens').doc(m.id).update({ lidaCliente: true }).catch(()=>{}));
-}
-
-async function _enviarPortalMsg() {
-  const inp = document.getElementById('portalChatInput');
-  const msg = inp?.value?.trim();
-  if (!msg) return;
-  await db.collection('mensagens').add({
-    tenantId:    P.tenantId,
-    clienteId:   P.clienteId,
-    sender:      'cliente',
-    msg,
-    lidaAdmin:   false,
-    lidaCliente: true,
-    ts:          Date.now()
-  });
-  inp.value = '';
-}
-
-async function _aprovarOrcamento(osId) {
-  await db.collection('ordens_servico').doc(osId).update({ status: 'Aprovado', updatedAt: new Date().toISOString() });
-  toast('Orçamento aprovado! Sua O.S. entrou na fila de serviço.', 'success');
-}
-
-async function _recusarOrcamento(osId) {
-  if (!confirm('Tem certeza que deseja recusar o orçamento?')) return;
-  await db.collection('ordens_servico').doc(osId).update({ status: 'Cancelado', updatedAt: new Date().toISOString() });
-  toast('Orçamento recusado.', 'warn');
-}
-
-// ──────────────────────────────────────────────────────────
-// HELPERS
-// ──────────────────────────────────────────────────────────
-function _moeda(v) { return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0); }
-function _dtBr(iso) { try { return iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'; } catch { return iso||'—'; } }
-
-function _osBadgeClass(status) {
-  const m = { Aguardando:'badge-neutral', Orcamento:'badge-warn', Aprovado:'badge-brand', Andamento:'badge-warn', Concluido:'badge-success', Cancelado:'badge-danger' };
-  return m[status] || 'badge-neutral';
-}
-
-function _hexR(hex) { return parseInt(hex.replace('#','').substring(0,2),16); }
-function _hexG(hex) { return parseInt(hex.replace('#','').substring(2,4),16); }
-function _hexB(hex) { return parseInt(hex.replace('#','').substring(4,6),16); }
-</script>
+      input.value = '';
+      await db.collection('mensagens').add({
+        tenantId: currentOS.tenantId,
+        osId: currentOS.id,
+        sender: 'cliente',
+        texto: txt,
+        ts: Date.now(),
+        lidaAdmin: false
+      });
+    }
+  </script>
 </body>
 </html>
