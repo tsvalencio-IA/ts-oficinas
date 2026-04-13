@@ -3,145 +3,274 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>JARVIS ERP — Equipe</title>
+  <title>JARVIS ERP — Painel da Equipe</title>
+  
   <link rel="stylesheet" href="css/design.css">
+  <style>
+    /* Estilos específicos para o Pátio / Mobile */
+    body { background-color: var(--bg-body); }
+    .topbar-mobile { background: var(--bg-card); padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+    
+    .os-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1px)); gap: 15px; padding: 20px; }
+    .os-card-mobile { background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); position: relative; cursor: pointer; transition: transform 0.2s; }
+    .os-card-mobile:active { transform: scale(0.98); }
+    
+    .status-badge { position: absolute; top: 20px; right: 20px; padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+    .status-execucao { background: var(--brand); color: white; }
+    .status-espera { background: var(--warning); color: black; }
+    
+    /* Botão Push-to-Talk (Microfone) */
+    .mic-btn { background: var(--brand); color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); cursor: pointer; transition: all 0.2s; }
+    .mic-btn.recording { background: var(--danger); box-shadow: 0 0 20px var(--danger); animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+  </style>
 </head>
-<body onload="initCoreEquipe()">
-  <div id="toast-container"></div>
+<body class="dark-theme">
 
-  <div style="display:flex;height:100vh">
-    <!-- SIDEBAR -->
-    <div style="width:250px;background:var(--bg-secondary);border-right:1px solid var(--border);overflow-y:auto;padding:var(--spacing-lg)">
-      <div style="margin-bottom:var(--spacing-2xl)">
-        <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:white;margin-bottom:var(--spacing-md)">J</div>
-        <div style="font-weight:700;font-size:var(--fs-sm)" id="sbTenantNome">Oficina</div>
-        <div style="font-size:var(--fs-xs);color:var(--text-muted)" id="sbUserNome">Equipe</div>
-      </div>
-
-      <nav style="display:flex;flex-direction:column;gap:var(--spacing-sm)">
-        <a href="#" onclick="showEqSection('os')" class="nav-item" style="padding:var(--spacing-md);border-radius:var(--r-md);text-decoration:none;color:var(--text-secondary);transition:var(--transition)">📋 Minhas O.S.</a>
-        <a href="#" onclick="showEqSection('comissoes')" class="nav-item" style="padding:var(--spacing-md);border-radius:var(--r-md);text-decoration:none;color:var(--text-secondary);transition:var(--transition)">💰 Comissões</a>
-        <a href="#" onclick="showEqSection('chat')" class="nav-item" style="padding:var(--spacing-md);border-radius:var(--r-md);text-decoration:none;color:var(--text-secondary);transition:var(--transition)">💬 Chat</a>
-      </nav>
-
-      <div style="margin-top:var(--spacing-2xl);padding-top:var(--spacing-lg);border-top:1px solid var(--border)">
-        <button class="btn btn-ghost btn-full" onclick="fazerLogout()" style="justify-content:flex-start">🚪 Sair</button>
-      </div>
+  <header class="topbar-mobile">
+    <div>
+      <div class="logo-mark" style="display:inline-flex; width: 30px; height: 30px; font-size: 1rem; margin-right: 10px;">J</div>
+      <strong id="sbTenantNome">Oficina</strong>
     </div>
-
-    <!-- MAIN -->
-    <div style="flex:1;overflow-y:auto;background:var(--bg-primary)">
-      <!-- TOPBAR -->
-      <div style="background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:var(--spacing-lg);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100">
-        <div style="font-size:var(--fs-lg);font-weight:700" id="eqTopTitle">Minhas O.S.</div>
-        <div style="display:flex;gap:var(--spacing-md);align-items:center">
-          <span style="font-size:var(--fs-sm);color:var(--text-muted)">Bem-vindo, <strong id="sbUserRole">EQUIPE</strong></span>
-          <div style="width:36px;height:36px;background:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:var(--fs-lg)" id="sbAvatar">J</div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <div style="text-align: right; line-height: 1.2;">
+        <span id="sbUserNome" style="font-weight: 600; font-size: 0.9rem; display: block;">Mecânico</span>
+        <span style="font-size: 0.7rem; color: var(--brand);">Equipe Técnica</span>
       </div>
+      <button class="btn btn-ghost" style="padding: 5px 10px; font-size: 0.8rem;" onclick="sair()">Sair</button>
+    </div>
+  </header>
 
-      <!-- SECTIONS -->
-      <div style="padding:var(--spacing-2xl)">
-        <!-- MINHAS O.S. -->
-        <div id="eqOSSection" class="section">
-          <h1 style="margin-bottom:var(--spacing-xl)">📋 Minhas Ordens de Serviço</h1>
-          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Placa</th>
-                  <th>Cliente</th>
-                  <th>Serviço</th>
-                  <th>Status</th>
-                  <th>Valor</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-              <tbody id="tbOSEquipe"></tbody>
-            </table>
+  <main style="padding-bottom: 80px;">
+    <div style="padding: 20px 20px 0;">
+      <h2 style="font-size: 1.2rem; margin-bottom: 5px;">Seu Quadro de Serviços</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">Toque num cartão para atualizar o status ou gravar diagnóstico.</p>
+    </div>
+    
+    <div class="os-grid" id="listaOSEquipe">
+      <div style="padding: 20px; color: var(--text-muted);">A carregar as suas Ordens de Serviço...</div>
+    </div>
+  </main>
+
+  <div class="modal" id="modalOSMecanico">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="mTitleOS">O.S. #000000</h3>
+        <button class="close-btn" onclick="closeModal('modalOSMecanico')">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div style="background: var(--bg-body); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px;">Veículo</p>
+          <strong id="mVeiculoOS" style="font-size: 1.1rem;"></strong>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 5px;">Defeito Relatado pelo Cliente</p>
+          <div id="mDefeitoOS" style="font-weight: 500;"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Status do Serviço</label>
+          <select class="input input-xl" id="mStatusOS" style="font-weight: bold; color: var(--brand);">
+            <option value="Em Pátio">🚗 Em Pátio (Aguardando)</option>
+            <option value="Diagnóstico">🔍 Em Diagnóstico</option>
+            <option value="Em Execução">⚙️ Em Execução (A trabalhar)</option>
+            <option value="Pronto">🏁 Pronto (Aguardando Retirada)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="position: relative;">
+          <label>Parecer Técnico / Diagnóstico</label>
+          <textarea class="input" id="mDiagnosticoOS" rows="4" placeholder="Descreva o problema encontrado ou fale ao microfone..."></textarea>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);" id="micStatus">Toque no microfone para ditar</span>
+            <button class="mic-btn" id="btnMic" onclick="toggleMicrofone()">🎤</button>
           </div>
         </div>
 
-        <!-- COMISSÕES -->
-        <div id="eqComissoesSection" class="section" style="display:none">
-          <h1 style="margin-bottom:var(--spacing-xl)">💰 Minhas Comissões</h1>
-          <div id="boxComissaoDetalhada"></div>
+        <div class="form-group">
+          <label>Adicionar Foto ao Laudo (Cloudinary)</label>
+          <input type="file" id="mFotoOS" accept="image/*" capture="environment" class="input" style="padding: 10px;">
+          <small style="color: var(--text-muted); display: block; margin-top: 5px;">As fotos são enviadas diretamente para o portal do cliente.</small>
         </div>
 
-        <!-- CHAT -->
-        <div id="eqChatSection" class="section" style="display:none">
-          <h1 style="margin-bottom:var(--spacing-xl)">💬 Chat com Admin</h1>
-          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--spacing-lg);height:400px;display:flex;flex-direction:column">
-            <div id="chatMsgs" style="flex:1;overflow-y:auto;margin-bottom:var(--spacing-lg);display:flex;flex-direction:column;gap:var(--spacing-md)"></div>
-            <div style="display:flex;gap:var(--spacing-sm)">
-              <input class="input" id="chatInputEquipe" type="text" placeholder="Digite sua mensagem...">
-              <button class="btn btn-brand" onclick="enviarMsgEquipe()">Enviar</button>
-            </div>
-          </div>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modalOSMecanico')">Cancelar</button>
+        <button class="btn btn-brand" id="btnSalvarOSMecanico" onclick="salvarAtualizacaoMecanico()">Gravar Atualização</button>
       </div>
     </div>
   </div>
 
-  <!-- FIREBASE -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- SCRIPTS -->
   <script src="js/config.js"></script>
   <script src="js/core.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/ia.js"></script>
+  <script src="js/os.js"></script>
 
   <script>
-    function showEqSection(section) {
-      document.querySelectorAll('.section').forEach(el => el.style.display = 'none');
-      document.getElementById('eq' + (section === 'os' ? 'OS' : section === 'comissoes' ? 'Comissoes' : 'Chat') + 'Section').style.display = 'block';
-      
-      const titles = {
-        os: '📋 Minhas O.S.',
-        comissoes: '💰 Minhas Comissões',
-        chat: '💬 Chat com Admin'
-      };
-      document.getElementById('eqTopTitle').textContent = titles[section] || 'Minhas O.S.';
-
-      if (section === 'comissoes') {
-        renderComissoes(J.financeiro.filter(f => f.mecId === J.fid));
-      } else if (section === 'chat') {
-        renderChatEquipe();
-      }
-    }
-
-    // Render minhas O.S.
-    window.renderOSEquipe = function() {
-      const container = document.getElementById('tbOSEquipe');
-      if (!container) return;
-
-      const osEquipe = J.os.filter(o => o.mecId === J.fid);
-      const html = osEquipe.map(o => {
-        const cliente = J.clientes.find(c => c.id === o.clienteId);
-        const veiculo = J.veiculos.find(v => v.id === o.veiculoId);
-        const status = JARVIS_CONST.STATUS_OS.find(s => s.key === o.status);
-
-        return `
-          <tr>
-            <td style="font-family:var(--ff-mono);font-weight:700">${veiculo?.placa || '?'}</td>
-            <td>${cliente?.nome || '?'}</td>
-            <td>${o.desc || '—'}</td>
-            <td><span style="background-color:${status?.cor}20;color:${status?.cor};padding:4px 8px;border-radius:4px;font-size:0.8rem">${status?.label}</span></td>
-            <td style="font-weight:700;color:var(--success)">${moeda(o.total)}</td>
-            <td>${dtBr(o.data)}</td>
-          </tr>
-        `;
-      }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px">Nenhuma O.S. atribuída</td></tr>';
-
-      container.innerHTML = html;
-    };
+    let currentMecanicoOSId = null;
 
     document.addEventListener('DOMContentLoaded', () => {
-      renderOSEquipe();
-      renderChatEquipe();
+      // Usa a função sagrada para inicializar a equipa, bloqueando se não houver login
+      window.initCoreEquipe(); 
     });
+
+    // Sobrescreve o renderizador de O.S. para a visão do mecânico
+    window.renderKanban = function() {
+      const container = document.getElementById('listaOSEquipe');
+      if (!container) return;
+
+      // O mecânico só deve ver O.S. que não estejam faturadas/finalizadas e que estejam no pátio
+      const osAtivas = J.os.filter(o => o.status !== 'Faturado' && o.status !== 'Finalizado' && o.status !== 'Agendado');
+
+      if (osAtivas.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; color: var(--text-muted); grid-column: 1 / -1; text-align: center;">Nenhum veículo ativo no pátio no momento.</div>';
+        return;
+      }
+
+      container.innerHTML = osAtivas.map(os => {
+        let badgeClass = 'status-espera';
+        if (os.status === 'Em Execução' || os.status === 'Diagnóstico') badgeClass = 'status-execucao';
+        
+        return `
+          <div class="os-card-mobile" onclick="abrirOSMecanico('${os.id}')">
+            <span class="status-badge ${badgeClass}">${os.status}</span>
+            <div style="font-family: var(--ff-mono); font-weight: bold; color: var(--brand); margin-bottom: 10px;">#${os.numero}</div>
+            <h3 style="margin-bottom: 5px; font-size: 1.1rem;">${os.veiculoModelo || 'Veículo'}</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">Placa: ${os.veiculoPlaca || 'N/A'}</p>
+          </div>
+        `;
+      }).join('');
+    };
+
+    // Abre o Modal para o mecânico mexer
+    window.abrirOSMecanico = function(id) {
+      currentMecanicoOSId = id;
+      const os = J.os.find(o => o.id === id);
+      if (!os) return;
+
+      document.getElementById('mTitleOS').textContent = `O.S. #${os.numero}`;
+      document.getElementById('mVeiculoOS').textContent = `${os.veiculoModelo || 'Veículo'} (${os.veiculoPlaca || 'S/P'})`;
+      document.getElementById('mDefeitoOS').textContent = os.defeitoRelatado || 'Nenhum defeito relatado.';
+      document.getElementById('mStatusOS').value = os.status;
+      document.getElementById('mDiagnosticoOS').value = os.diagnosticoMecanico || '';
+      document.getElementById('mFotoOS').value = '';
+
+      openModal('modalOSMecanico');
+    };
+
+    // Salvar as alterações feitas pelo mecânico
+    window.salvarAtualizacaoMecanico = async function() {
+      if (!currentMecanicoOSId) return;
+
+      const novoStatus = document.getElementById('mStatusOS').value;
+      const novoDiag = document.getElementById('mDiagnosticoOS').value.trim();
+      const fotoFile = document.getElementById('mFotoOS').files[0];
+
+      try {
+        setLoading('btnSalvarOSMecanico', true);
+
+        const payload = {
+          status: novoStatus,
+          diagnosticoMecanico: novoDiag,
+          updatedAt: dtISO(),
+          auditoria: firebase.firestore.FieldValue.arrayUnion({
+            data: dtISO(),
+            usuario: J.nome,
+            acao: `Atualizou o status para "${novoStatus}" pelo painel do pátio.`
+          })
+        };
+
+        // Salvar no Banco
+        await J.db.collection('ordens_servico').doc(currentMecanicoOSId).update(payload);
+
+        // Fazer upload da foto pro Cloudinary se houver (Usa a função que criamos no os.js)
+        if (fotoFile) {
+          await uploadImagemCloudinary(fotoFile, currentMecanicoOSId);
+        }
+
+        toastOk('O.S. atualizada com sucesso!');
+        closeModal('modalOSMecanico');
+
+      } catch (e) {
+        toastErr('Erro ao atualizar a O.S.');
+        console.error(e);
+      } finally {
+        setLoading('btnSalvarOSMecanico', false);
+      }
+    };
+
+    // ============================================================
+    // LÓGICA DO PUSH-TO-TALK (MICROFONE NATIVO)
+    // ============================================================
+    let reconhecimento;
+    let isRecording = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      reconhecimento = new SpeechRecognition();
+      reconhecimento.continuous = true;
+      reconhecimento.interimResults = true;
+      reconhecimento.lang = 'pt-BR';
+
+      reconhecimento.onresult = function(event) {
+        let transcricaoFinal = '';
+        let transcricaoIntermediaria = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            transcricaoFinal += event.results[i][0].transcript;
+          } else {
+            transcricaoIntermediaria += event.results[i][0].transcript;
+          }
+        }
+
+        const textArea = document.getElementById('mDiagnosticoOS');
+        if (transcricaoFinal) {
+          textArea.value += (textArea.value ? ' ' : '') + transcricaoFinal;
+        }
+      };
+
+      reconhecimento.onerror = function(event) {
+        console.error('Erro no microfone', event);
+        pararMicrofone();
+      };
+    } else {
+      document.getElementById('btnMic').style.display = 'none';
+      document.getElementById('micStatus').textContent = 'Microfone não suportado neste navegador.';
+    }
+
+    window.toggleMicrofone = function() {
+      if (!reconhecimento) return;
+
+      if (isRecording) {
+        pararMicrofone();
+      } else {
+        iniciarMicrofone();
+      }
+    };
+
+    function iniciarMicrofone() {
+      try {
+        reconhecimento.start();
+        isRecording = true;
+        document.getElementById('btnMic').classList.add('recording');
+        document.getElementById('micStatus').textContent = 'A escutar... Fale agora.';
+        document.getElementById('micStatus').style.color = 'var(--danger)';
+      } catch (e) {}
+    }
+
+    function pararMicrofone() {
+      try {
+        reconhecimento.stop();
+        isRecording = false;
+        document.getElementById('btnMic').classList.remove('recording');
+        document.getElementById('micStatus').textContent = 'Toque no microfone para ditar';
+        document.getElementById('micStatus').style.color = 'var(--text-muted)';
+      } catch (e) {}
+    }
   </script>
 </body>
 </html>
