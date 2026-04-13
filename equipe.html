@@ -2,668 +2,1700 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JARVIS — Painel da Equipe</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/design.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <style>
-html,body{height:100%;overflow:hidden;}
-/* TOPBAR */
-.topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--surf-0);border-bottom:1px solid var(--border);padding:0 14px;height:54px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
-.topbar-left{display:flex;align-items:center;gap:10px;}
-.logo-mark{width:32px;height:32px;border-radius:var(--r-md);background:var(--brand-dim);border:1px solid rgba(59,130,246,.25);display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:.9rem;font-weight:800;color:var(--brand);flex-shrink:0;}
-.tenant-name{font-family:var(--ff-display);font-size:.82rem;font-weight:700;color:var(--text-primary);}
-.user-name{font-family:var(--ff-mono);font-size:.56rem;color:var(--brand);letter-spacing:.06em;text-transform:uppercase;}
-.btn-sair{padding:6px 12px;background:transparent;border:1px solid rgba(244,63,94,.25);border-radius:var(--r-md);color:rgba(244,63,94,.6);font-family:var(--ff-mono);font-size:.6rem;letter-spacing:.06em;cursor:pointer;transition:all .12s;}
-.btn-sair:hover{background:rgba(244,63,94,.08);color:var(--danger);}
-/* TABS */
-.tab-bar{position:fixed;top:54px;left:0;right:0;z-index:90;background:var(--surf-0);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.tab{padding:11px 16px;font-family:var(--ff-mono);font-size:.62rem;letter-spacing:.08em;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;display:flex;align-items:center;gap:6px;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
-.tab:hover{color:var(--text-primary);}
-.tab.active{color:var(--brand);border-bottom-color:var(--brand);}
-.tab-badge{background:var(--danger);color:#fff;font-size:.5rem;padding:1px 5px;border-radius:8px;}
-/* PAGE */
-.page{padding:54px 0 0;height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
-.tab-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 80px;}
-.section{display:none;}
-.section.active{display:block;animation:fade-in .18s ease;}
-@keyframes fade-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
-/* BOTTOM NAV */
-.bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surf-0);border-top:1px solid var(--border);z-index:55;padding:4px 0 env(safe-area-inset-bottom,4px);}
-.bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 4px;cursor:pointer;color:var(--text-muted);font-family:var(--ff-mono);font-size:.5rem;gap:3px;transition:color .12s;position:relative;-webkit-tap-highlight-color:transparent;}
-.bn.active{color:var(--brand);}
-.bn-icon{font-size:1.05rem;line-height:1;}
-.bn-badge{position:absolute;top:5px;right:calc(50% - 12px);background:var(--danger);color:#fff;font-size:.48rem;padding:1px 4px;border-radius:8px;display:none;}
-.bn-badge.show{display:block;}
-/* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
-.kpi{background:var(--surf-1);border:1px solid var(--border);border-radius:var(--r-xl);padding:13px;position:relative;overflow:hidden;}
-.kpi-accent{position:absolute;top:0;left:10px;right:10px;height:2px;border-radius:0 0 4px 4px;}
-.kpi-lbl{font-family:var(--ff-mono);font-size:.52rem;color:var(--text-muted);letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px;}
-.kpi-val{font-family:var(--ff-display);font-size:1.5rem;font-weight:800;line-height:1;letter-spacing:-.02em;}
-.kpi-sub{font-family:var(--ff-mono);font-size:.52rem;color:var(--text-secondary);margin-top:3px;}
-/* KANBAN */
-.kanban{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;}
-.k-col{background:var(--surf-1);border:1px solid var(--border);border-radius:var(--r-xl);min-width:80vw;width:80vw;display:flex;flex-direction:column;max-height:calc(100dvh - 220px);flex-shrink:0;scroll-snap-align:start;}
-.k-head{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.k-lbl{font-family:var(--ff-mono);font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
-.k-cnt{font-family:var(--ff-mono);font-size:.58rem;color:var(--text-muted);padding:2px 6px;border:1px solid var(--border);border-radius:10px;}
-.k-body{overflow-y:auto;padding:7px;flex:1;display:flex;flex-direction:column;gap:6px;}
-.k-card{background:var(--surf-2);border:1px solid var(--border);border-left:3px solid;border-radius:var(--r-lg);padding:11px 12px;cursor:pointer;transition:all .12s;-webkit-tap-highlight-color:transparent;}
-.k-card:active{transform:scale(.98);}
-.k-placa{font-family:var(--ff-mono);font-size:.88rem;font-weight:700;letter-spacing:.07em;margin-bottom:3px;}
-.k-cli{font-size:.74rem;color:var(--text-secondary);margin-bottom:4px;}
-.k-desc{font-size:.7rem;color:var(--text-muted);margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;}
-.k-foot{display:flex;align-items:center;justify-content:space-between;}
-.k-tipo{font-family:var(--ff-mono);font-size:.5rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:100px;}
-.k-tipo.carro    {background:rgba(59,130,246,.12);color:var(--brand);}
-.k-tipo.moto     {background:rgba(245,158,11,.12);color:var(--warn);}
-.k-tipo.bicicleta{background:rgba(34,211,160,.12);color:var(--success);}
-/* CARDS */
-.card{background:var(--surf-1);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;margin-bottom:12px;}
-.card-hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;}
-.card-title{font-family:var(--ff-display);font-size:.88rem;font-weight:700;}
-.card-body{padding:14px;}
-/* FORM */
-.fg{margin-bottom:12px;}
-.lbl{display:block;font-family:var(--ff-mono);font-size:.55rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
-.inp,.sel,.ta{width:100%;background:var(--surf-2);border:1px solid var(--border-med);border-radius:var(--r-md);color:var(--text-primary);font-family:var(--ff-body);font-size:16px;padding:11px 12px;outline:none;transition:all .12s;-webkit-appearance:none;}
-.inp:focus,.sel:focus,.ta:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-dim);}
-.inp::placeholder{color:var(--text-muted);}
-.ta{resize:vertical;min-height:72px;line-height:1.6;}
-.fr2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:var(--r-md);border:none;font-family:var(--ff-body);font-size:.86rem;font-weight:600;cursor:pointer;transition:all .12s;white-space:nowrap;user-select:none;-webkit-tap-highlight-color:transparent;min-height:44px;}
-.btn:disabled{opacity:.4;}
-.btn:active:not(:disabled){transform:scale(.97);}
-.btn-brand  {background:var(--brand);color:#fff;}
-.btn-brand:hover{background:var(--brand-dark);}
-.btn-ghost  {background:transparent;border:1px solid var(--border-med);color:var(--text-secondary);}
-.btn-danger {background:transparent;border:1px solid rgba(244,63,94,.25);color:var(--danger);}
-.btn-success{background:transparent;border:1px solid rgba(34,211,160,.25);color:var(--success);}
-.btn-full{width:100%;justify-content:center;}
-.btn-sm{padding:7px 12px;font-size:.78rem;min-height:36px;}
-.btn-icon{padding:8px;width:36px;height:36px;}
-/* MODAIS */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);overflow-y:auto;}
-.overlay.open{display:flex;}
-.modal{background:var(--surf-1);border:1px solid var(--border-med);border-radius:var(--r-2xl) var(--r-2xl) 0 0;width:100%;max-height:94dvh;overflow-y:auto;animation:modal-in .2s cubic-bezier(.34,1.2,.64,1);}
-.m-hd{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surf-1);z-index:10;}
-.m-title{font-family:var(--ff-display);font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:8px;}
-.m-close{background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-md);color:var(--text-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;}
-.m-close:hover{background:rgba(244,63,94,.1);color:var(--danger);}
-.m-tabs{display:flex;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surf-2);overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.mtab{padding:10px 14px;font-family:var(--ff-mono);font-size:.58rem;letter-spacing:.08em;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s;text-transform:uppercase;white-space:nowrap;}
-.mtab.active{color:var(--brand);border-bottom-color:var(--brand);}
-.tab-pane{display:none;padding:15px 18px;}
-.tab-pane.active{display:block;}
-.m-body{padding:18px;}
-.m-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:9px;position:sticky;bottom:0;background:var(--surf-1);}
-.m-foot .btn{flex:1;}
-/* BADGES */
-.badge{display:inline-block;padding:2px 8px;border-radius:100px;font-family:var(--ff-mono);font-size:.55rem;letter-spacing:.06em;font-weight:500;}
-.b-brand  {background:var(--brand-dim);color:var(--brand);}
-.b-success{background:rgba(34,211,160,.1);color:var(--success);}
-.b-warn   {background:rgba(245,158,11,.1);color:var(--warn);}
-.b-danger {background:rgba(244,63,94,.1);color:var(--danger);}
-.b-neutral{background:var(--surf-3);color:var(--text-secondary);}
-.placa{font-family:var(--ff-mono);font-size:.78rem;font-weight:700;letter-spacing:.1em;padding:2px 8px;background:var(--surf-3);border:1px solid var(--border-med);border-radius:4px;}
-/* MEDIA */
-.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:7px;}
-.media-item{aspect-ratio:1;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--border);position:relative;background:var(--surf-2);}
-.media-item img,.media-item video{width:100%;height:100%;object-fit:cover;}
-.media-del{position:absolute;top:3px;right:3px;background:rgba(244,63,94,.85);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;}
-.upload-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;}
-.upload-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;background:var(--surf-3);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-secondary);min-height:48px;-webkit-tap-highlight-color:transparent;}
-/* TIMELINE */
-.tl-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);}
-.tl-item:last-child{border-bottom:none;}
-.tl-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;background:var(--surf-3);}
-.tl-body{flex:1;}
-.tl-user{font-weight:700;font-size:.8rem;margin-bottom:2px;}
-.tl-date{font-family:var(--ff-mono);font-size:.56rem;color:var(--text-muted);}
-.tl-action{font-size:.8rem;color:var(--text-primary);line-height:1.5;margin-top:2px;}
-/* CHAT */
-.chat-msgs{background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-xl) var(--r-xl) 0 0;min-height:220px;max-height:380px;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
-.chat-foot{background:var(--surf-2);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-xl) var(--r-xl);padding:9px;display:flex;gap:8px;}
-.chat-msg{max-width:74%;padding:9px 12px;border-radius:var(--r-lg);font-size:.82rem;line-height:1.5;}
-.chat-msg.outgoing{background:var(--brand-dim);border:1px solid rgba(59,130,246,.2);align-self:flex-end;}
-.chat-msg.incoming{background:var(--surf-3);border:1px solid var(--border);align-self:flex-start;}
-.chat-ts{font-family:var(--ff-mono);font-size:.56rem;color:var(--text-muted);margin-top:3px;text-align:right;}
-/* TOAST */
-#toastBox{position:fixed;bottom:75px;left:10px;right:10px;z-index:9999;display:flex;flex-direction:column;gap:7px;pointer-events:none;}
-.toast-j{padding:10px 14px;border-radius:var(--r-lg);display:flex;align-items:center;gap:8px;border:1px solid;background:var(--surf-1);box-shadow:0 4px 14px rgba(0,0,0,.5);animation:t-in .2s ease;pointer-events:all;font-size:.78rem;}
-@keyframes t-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
-.toast-j.ok  {border-color:rgba(34,211,160,.3);}
-.toast-j.err {border-color:rgba(244,63,94,.3);}
-.toast-j.warn{border-color:rgba(245,158,11,.3);}
-/* MISC */
-.spinner{width:17px;height:17px;border:2px solid var(--border-med);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.empty-state{text-align:center;padding:32px 16px;color:var(--text-muted);}
-.empty-icon{font-size:1.8rem;margin-bottom:8px;opacity:.45;}
-.divider{height:1px;background:var(--border);margin:12px 0;}
-.hidden{display:none!important;}
-/* COM card */
-.com-card{background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
-.com-name{font-size:.84rem;font-weight:600;}
-.com-lbl{font-family:var(--ff-mono);font-size:.54rem;color:var(--text-muted);}
-.com-val{font-family:var(--ff-display);font-size:1.15rem;font-weight:800;color:var(--success);}
-/* PECA ROW */
-.peca-row{display:grid;grid-template-columns:1fr 55px 65px 30px;gap:6px;align-items:center;margin-bottom:6px;}
+/* ─── BASE ─── */
+body{font-family:'Roboto',sans-serif;background:#f0f2f5;overflow-x:hidden}
+
+/* ─── KANBAN ─── */
+.status-column{background:#e2e8f0;border-radius:12px;display:flex;flex-direction:column;transition:all .3s ease;min-height:100px;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+.vehicle-list{flex-grow:1;transition:all .3s ease-in-out;max-height:65vh;overflow-y:auto;padding:0 8px 8px}
+.vehicle-list.collapsed{max-height:0;margin-top:0!important;padding:0!important;overflow:hidden}
+.vehicle-card{background:white;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,.05);transition:all .2s ease-in-out;border-left:5px solid;cursor:pointer;position:relative}
+.vehicle-card:hover{transform:translateY(-3px);box-shadow:0 8px 12px rgba(0,0,0,.1);z-index:10}
+.vehicle-card.status-Aguardando-Mecanico{border-left-color:#f59e0b}
+.vehicle-card.status-Em-Analise{border-left-color:#8b5cf6}
+.vehicle-card.status-Orcamento-Enviado{border-left-color:#06b6d4}
+.vehicle-card.status-Aguardando-Aprovacao{border-left-color:#d946ef}
+.vehicle-card.status-Servico-Autorizado{border-left-color:#10b981}
+.vehicle-card.status-Em-Execucao{border-left-color:#ef4444}
+.vehicle-card.status-Finalizado-Aguardando-Retirada{border-left-color:#f97316}
+.vehicle-card.status-Entregue{border-left-color:#6b7280;opacity:.9}
+
+/* ─── MODAL ─── */
+.modal{background:rgba(0,0,0,.6);backdrop-filter:blur(5px);z-index:9999}
+.modal-content{background:#f8fafc;border-radius:16px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{background:white;border-bottom:1px solid #e2e8f0;padding:1rem 1.5rem;flex-shrink:0}
+.modal-body{overflow-y:auto;flex-grow:1;padding:1.5rem}
+.modal-footer{background:white;border-top:1px solid #e2e8f0;padding:1rem 1.5rem;display:flex;justify-content:flex-end;align-items:center;gap:.5rem}
+
+/* ─── BOTÕES ─── */
+.btn{transition:all .2s ease;border-radius:8px;font-weight:600;padding:.5rem 1rem;display:inline-flex;align-items:center;justify-content:center;gap:.5rem}
+.btn:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgba(0,0,0,.1)}
+
+/* ─── TIMELINE (padrão Chevron) ─── */
+.timeline{border-left:3px solid #e5e7eb;position:relative}
+.timeline-item{position:relative;padding-left:2.5rem;margin-bottom:1.5rem}
+.timeline-icon{position:absolute;left:-.875rem;top:.25rem;width:1.75rem;height:1.75rem;border-radius:9999px;background:white;border:3px solid;display:flex;align-items:center;justify-content:center;z-index:10}
+.timeline-item-log    .timeline-icon{border-color:#3b82f6;color:#3b82f6}
+.timeline-item-status .timeline-icon{border-color:#10b981;color:#10b981}
+.timeline-item-value  .timeline-icon{border-color:#f59e0b;color:#f59e0b}
+.timeline-item-media  .timeline-icon{border-color:#8b5cf6;color:#8b5cf6}
+.timeline-item-excluido .timeline-icon{border-color:#ef4444;color:#ef4444}
+.delete-log-btn{position:absolute;top:4px;right:4px;background:#f1f5f9;color:#94a3b8;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;transition:all .2s;opacity:.5;cursor:pointer;border:none}
+.timeline-item:hover .delete-log-btn{opacity:1}
+.delete-log-btn:hover{background:#ef4444;color:white}
+
+/* ─── PAINEL ATENÇÃO (padrão Chevron) ─── */
+#attention-panel-container{transition:max-height .5s ease-in-out,padding .5s ease-in-out;max-height:500px;overflow:hidden}
+#attention-panel-container.collapsed{max-height:0;padding-top:0;padding-bottom:0;border-bottom:0}
+#attention-panel{font-family:'Orbitron',sans-serif;background:#0f172a;border-bottom:4px solid #334155;padding:.5rem}
+.attention-box{transition:all .5s ease;padding:.5rem;border-radius:6px;min-height:80px}
+.blinking-aguardando{animation:blink-ag 2s infinite}
+.blinking-autorizado{animation:blink-at 2s infinite}
+.blinking-finalizado{animation:blink-fin 2s infinite}
+@keyframes blink-ag{50%{background-color:#4a2f0a}}
+@keyframes blink-at{50%{background-color:#064e3b}}
+@keyframes blink-fin{50%{background-color:#7c2d12}}
+
+/* ─── LED ─── */
+#alert-led{width:16px;height:16px;background:#ef4444;border-radius:50%;box-shadow:0 0 12px #ef4444,inset 0 0 4px white;animation:blink-led 1s infinite;margin-left:8px}
+@keyframes blink-led{50%{opacity:.2}}
+.column-led{width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 5px #22c55e;margin-left:6px}
+
+/* ─── NOTIFICAÇÃO ─── */
+.notification{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;color:white;font-weight:500;z-index:9999;transform:translateX(120%);transition:transform .3s ease;max-width:300px}
+.notification.show{transform:translateX(0)}
+.notification.success{background:#10b981}
+.notification.error{background:#ef4444}
+.notification.info{background:#3b82f6}
+.notification.warn{background:#f59e0b}
+
+/* ─── LIGHTBOX ─── */
+#lightbox{background:rgba(0,0,0,.85);backdrop-filter:blur(8px);z-index:99999}
+#lightbox img,#lightbox video{max-height:80vh;max-width:80vw}
+
+/* ─── MÍDIA ─── */
+.thumbnail-container{position:relative}
+.delete-media-btn{position:absolute;top:-6px;right:-6px;z-index:10;background:#ef4444;color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);opacity:0;transition:all .2s ease-in-out;transform:scale(.8)}
+.thumbnail-container:hover .delete-media-btn{opacity:1;transform:scale(1)}
+.delete-media-btn:hover{background:#dc2626;transform:scale(1.1)}
+
+/* ─── BUSCA ─── */
+.search-result-item{padding:.75rem 1rem;cursor:pointer;border-bottom:1px solid #e5e7eb}
+.search-result-item:last-child{border-bottom:none}
+.search-result-item:hover{background:#f3f4f6}
+
+/* ─── LAYOUT FICHA OS ─── */
+.os-details-container{display:grid;grid-template-columns:1fr;gap:1.5rem}
+.os-header{background:white;border-radius:12px;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.os-content{display:grid;grid-template-columns:1fr;gap:1.5rem;align-items:start}
+@media(min-width:1024px){.os-content{grid-template-columns:1fr 400px}}
+.os-actions-section{position:sticky;top:1rem;align-self:start}
+.section-title{font-size:1.25rem;font-weight:600;color:#1e293b;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid #e2e8f0}
+
+/* ─── PRIORIDADE ─── */
+.priority-indicator{position:absolute;top:10px;right:10px;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.priority-indicator.priority-vermelho{background:#ef4444}
+.priority-indicator.priority-amarelo{background:#f59e0b}
+.priority-indicator.priority-verde{background:#22c55e}
+
+/* ─── SCROLLBAR ─── */
+.vehicle-list::-webkit-scrollbar{width:6px}
+.vehicle-list::-webkit-scrollbar-track{background:transparent}
+.vehicle-list::-webkit-scrollbar-thumb{background:#cbd5e0;border-radius:20px}
+.vehicle-list::-webkit-scrollbar-thumb:hover{background:#a0aec0}
+
+/* ─── KPI ─── */
+.kpi-card{background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:all .2s}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.1)}
+.kpi-value{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;line-height:1}
+.kpi-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:4px}
+
+/* ─── CHAT ─── */
+.chat-bubble{max-width:80%;padding:8px 12px;border-radius:12px;font-size:.875rem;line-height:1.5}
+.chat-bubble.out{background:#3b82f6;color:white;border-radius:12px 12px 2px 12px;align-self:flex-end}
+.chat-bubble.in{background:white;color:#1e293b;border-radius:12px 12px 12px 2px;align-self:flex-start;border:1px solid #e5e7eb}
+.chat-ts{font-size:.6rem;color:#94a3b8;margin-top:2px;text-align:right}
+
+/* ─── TEMPLATE BTN ─── */
+.tmpl-btn{display:block;width:100%;text-align:left;padding:9px 12px;border-radius:8px;border:1px solid #e2e8f0;background:white;transition:all .15s;cursor:pointer;font-size:.84rem;color:#374151;margin-bottom:6px}
+.tmpl-btn:hover,.tmpl-btn.sel{background:#eff6ff;border-color:#3b82f6;color:#1d4ed8}
+
+/* ─── MOBILE ─── */
+@media(max-width:640px){
+  .modal-content{border-radius:16px 16px 0 0;max-height:95dvh}
+  .modal{align-items:flex-end!important}
+}
+
+/* ─── BOTTOM NAV ─── */
+.bottom-nav{display:none}
+@media(max-width:768px){
+  .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #e2e8f0;z-index:50;padding:4px 0 env(safe-area-inset-bottom,4px)}
+  .bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;cursor:pointer;color:#94a3b8;font-size:.55rem;font-weight:600;gap:3px;transition:color .15s;position:relative;-webkit-tap-highlight-color:transparent}
+  .bn.active{color:#3b82f6}
+  .bn-icon{font-size:1.2rem;line-height:1}
+  .bn-badge{position:absolute;top:5px;right:calc(50% - 14px);background:#ef4444;color:white;font-size:.48rem;padding:1px 5px;border-radius:8px;display:none}
+  .bn-badge.show{display:block}
+  main{padding-bottom:72px!important}
+}
 </style>
 </head>
 <body>
-<div id="toastBox"></div>
 
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="logo-mark brand-logo-mark">J</div>
-    <div>
-      <div class="tenant-name brand-name" id="tbTenantNome">Oficina</div>
-      <div class="user-name">🔧 <span id="topNome">Mecânico</span></div>
+<!-- ════════════════════════════════════════
+     TELA DE LOGIN LOCAL (fallback)
+════════════════════════════════════════ -->
+<div id="loginScreen" class="flex items-center justify-center min-h-screen p-4">
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm text-center">
+    <div class="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+      <i class='bx bxs-wrench text-white text-2xl'></i>
     </div>
+    <h1 class="text-2xl font-bold text-gray-800" id="loginTitulo">JARVIS ERP</h1>
+    <p class="text-sm font-semibold text-blue-700 mt-1">Painel da Equipe</p>
+    <form id="loginForm" class="mt-6 text-left">
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Usuário</label>
+        <input id="loginUser" type="text" placeholder="seu.usuario" required
+          class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+        <input id="loginPass" type="password" placeholder="••••••••" required
+          class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+      <button type="submit" class="w-full btn bg-blue-600 hover:bg-blue-700 text-white py-2">
+        <i class='bx bx-log-in'></i> Entrar
+      </button>
+      <p id="loginErr" class="text-red-500 text-sm mt-2 text-center h-4"></p>
+    </form>
   </div>
-  <button class="btn-sair" onclick="sair()">⏻ Sair</button>
 </div>
 
-<!-- PAGE -->
-<div class="page">
-  <div class="tab-content">
+<!-- ════════════════════════════════════════
+     APP PRINCIPAL
+════════════════════════════════════════ -->
+<div id="app" class="hidden">
 
-    <!-- PÁTIO -->
-    <section class="section active" id="s-patio">
-      <div class="kpi-row">
-        <div class="kpi"><div class="kpi-accent" style="background:var(--brand)"></div><div class="kpi-lbl">MINHAS OS</div><div class="kpi-val" id="kMeusOS" style="color:var(--brand)">0</div><div class="kpi-sub">abertas</div></div>
-        <div class="kpi"><div class="kpi-accent" style="background:#F97316"></div><div class="kpi-lbl">EM EXECUÇÃO</div><div class="kpi-val" id="kEmExec" style="color:#F97316">0</div><div class="kpi-sub">agora</div></div>
-        <div class="kpi"><div class="kpi-accent" style="background:var(--success)"></div><div class="kpi-lbl">COMISSÃO</div><div class="kpi-val" id="kComPend" style="color:var(--success);font-size:1.1rem">R$ 0</div><div class="kpi-sub">a receber</div></div>
+  <!-- ── HEADER ── -->
+  <header class="bg-white shadow-md sticky top-0 z-40">
+    <!-- Painel atenção (padrão Chevron) -->
+    <div id="attention-panel-container">
+      <div id="attention-panel" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2"></div>
+    </div>
+    <!-- Topbar -->
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center gap-3">
+      <!-- Logo + LED -->
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <div>
+          <h1 class="text-lg font-bold text-gray-800" id="topTenantNome">JARVIS ERP</h1>
+          <p class="text-xs font-semibold text-blue-700 -mt-0.5" id="topUserInfo">🔧 Equipe</p>
+        </div>
+        <div id="alert-led" class="hidden"></div>
+        <button id="togglePanelBtn" class="text-gray-400 hover:text-blue-800 p-1" title="Painel de Alertas">
+          <i class='bx bxs-chevron-up text-xl'></i>
+        </button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <input class="inp" id="searchOS" placeholder="🔍 Buscar placa..." oninput="renderKanban()" style="max-width:200px;font-size:14px">
-        <button class="btn btn-brand btn-sm" onclick="prepOS('add');openModal('modalOS')">+ NOVA O.S.</button>
+
+      <!-- Busca global (desktop) -->
+      <div class="flex-grow max-w-md relative search-container hidden sm:block">
+        <input type="search" id="globalSearch" placeholder="Buscar por Placa..."
+          class="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div id="globalSearchRes" class="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 hidden max-h-60 overflow-y-auto"></div>
       </div>
-      <div class="kanban" id="kanbanBoard">
-        <div class="k-col" style="border-top:2px solid var(--text-muted)"><div class="k-head"><span class="k-lbl" style="color:var(--text-muted)">TRIAGEM</span><span class="k-cnt" id="cnt-Aguardando">0</span></div><div class="k-body" id="kb-Aguardando"></div></div>
-        <div class="k-col" style="border-top:2px solid var(--warn)"><div class="k-head"><span class="k-lbl" style="color:var(--warn)">ORÇAMENTO</span><span class="k-cnt" id="cnt-Orcamento">0</span></div><div class="k-body" id="kb-Orcamento"></div></div>
-        <div class="k-col" style="border-top:2px solid var(--brand)"><div class="k-head"><span class="k-lbl" style="color:var(--brand)">APROVADO</span><span class="k-cnt" id="cnt-Aprovado">0</span></div><div class="k-body" id="kb-Aprovado"></div></div>
-        <div class="k-col" style="border-top:2px solid #F97316"><div class="k-head"><span class="k-lbl" style="color:#F97316">EM SERVIÇO</span><span class="k-cnt" id="cnt-Andamento">0</span></div><div class="k-body" id="kb-Andamento"></div></div>
-        <div class="k-col" style="border-top:2px solid var(--success)"><div class="k-head"><span class="k-lbl" style="color:var(--success)">PRONTO</span><span class="k-cnt" id="cnt-Concluido">0</span></div><div class="k-body" id="kb-Concluido"></div></div>
+
+      <!-- Ações -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <!-- Busca mobile -->
+        <button class="sm:hidden text-gray-500 p-1" onclick="toggleMobileSearch()">
+          <i class='bx bx-search text-xl'></i>
+        </button>
+        <button id="btnNovaOS" class="btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2">
+          <i class='bx bx-plus-circle'></i><span class="hidden sm:inline ml-1">Nova O.S.</span>
+        </button>
+        <button id="btnMsgCliente" class="btn bg-green-600 hover:bg-green-700 text-white px-3 py-2" title="Mensagem ao Cliente">
+          <i class='bx bx-message-dots text-xl'></i><span class="hidden md:inline ml-1">Msg Cliente</span>
+        </button>
+        <div class="hidden sm:block text-right">
+          <p id="topUserNome" class="font-semibold text-gray-700 text-sm"></p>
+          <button onclick="sair()" class="text-xs text-red-500 hover:text-red-700">Sair</button>
+        </div>
       </div>
+    </div>
+    <!-- Busca mobile -->
+    <div id="mobileSearchBar" class="hidden px-4 pb-3 sm:hidden">
+      <div class="relative">
+        <input type="search" id="mobileSearch" placeholder="Buscar por Placa..."
+          class="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div id="mobileSearchRes" class="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 hidden max-h-60 overflow-y-auto"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- SEÇÃO: PÁTIO (KANBAN) -->
+    <section id="sec-patio">
+      <!-- KPIs -->
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div class="kpi-card"><div class="kpi-label text-blue-500">MINHAS OS</div><div class="kpi-value text-blue-600" id="kMeusOS">0</div><div class="text-xs text-gray-400 mt-1">abertas</div></div>
+        <div class="kpi-card"><div class="kpi-label text-orange-500">EM EXECUÇÃO</div><div class="kpi-value text-orange-500" id="kEmExec">0</div><div class="text-xs text-gray-400 mt-1">agora</div></div>
+        <div class="kpi-card"><div class="kpi-label text-green-500">COMISSÃO</div><div class="font-bold text-green-600 mt-1" id="kComissao" style="font-family:'Orbitron',sans-serif;font-size:1rem">R$ 0</div><div class="text-xs text-gray-400">a receber</div></div>
+      </div>
+      <!-- Board Kanban -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4" id="kanbanBoard"></div>
     </section>
 
-    <!-- CHAT -->
-    <section class="section" id="s-chat">
-      <div class="card">
-        <div class="card-hd"><div class="card-title">💬 Chat com Admin</div><div class="status-dot online"></div></div>
-        <div class="card-body" style="padding:0">
-          <div class="chat-msgs" id="chatMsgs"><div class="empty-state"><div class="empty-icon">💬</div><div style="font-size:.78rem">Sem mensagens ainda</div></div></div>
-          <div class="chat-foot">
-            <input class="inp" id="chatInput" placeholder="Mensagem para o admin..." style="flex:1;font-size:15px">
-            <button class="btn btn-brand btn-sm" onclick="enviarMsg()">→</button>
+    <!-- SEÇÃO: CHAT -->
+    <section id="sec-chat" class="hidden">
+      <div class="bg-white rounded-xl shadow overflow-hidden max-w-2xl mx-auto">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div>
+            <h2 class="font-bold text-gray-800">💬 Chat com Admin / Oficina</h2>
+            <p class="text-xs text-gray-500">Mensagens internas da equipe</p>
           </div>
+          <div class="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div> Online
+          </div>
+        </div>
+        <div id="chatMsgs" class="flex flex-col gap-2 p-4" style="min-height:260px;max-height:400px;overflow-y:auto">
+          <div class="text-center text-gray-400 py-8 text-sm">Sem mensagens ainda</div>
+        </div>
+        <div class="p-3 border-t flex gap-2">
+          <input id="chatInput" type="text" placeholder="Mensagem para o admin..."
+            class="flex-1 p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button onclick="enviarChat()" class="btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2">
+            <i class='bx bx-send'></i>
+          </button>
         </div>
       </div>
     </section>
 
-    <!-- COMISSÕES -->
-    <section class="section" id="s-comissoes">
-      <div class="kpi-row" style="grid-template-columns:1fr 1fr">
-        <div class="kpi"><div class="kpi-accent" style="background:var(--success)"></div><div class="kpi-lbl">A RECEBER</div><div class="kpi-val" id="kComTotal" style="color:var(--success);font-size:1.3rem">R$ 0</div></div>
-        <div class="kpi"><div class="kpi-accent" style="background:var(--text-muted)"></div><div class="kpi-lbl">JÁ RECEBIDO</div><div class="kpi-val" id="kComPago" style="color:var(--text-secondary);font-size:1.3rem">R$ 0</div></div>
+    <!-- SEÇÃO: COMISSÕES -->
+    <section id="sec-comissoes" class="hidden">
+      <div class="max-w-2xl mx-auto">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="kpi-card"><div class="kpi-label text-green-500">A RECEBER</div><div class="kpi-value text-green-600 text-xl" id="kComTotal">R$ 0</div></div>
+          <div class="kpi-card"><div class="kpi-label text-gray-400">JÁ RECEBIDO</div><div class="kpi-value text-gray-500 text-xl" id="kComPago">R$ 0</div></div>
+        </div>
+        <div id="boxComissoes" class="space-y-3"></div>
       </div>
-      <div id="boxComissaoDetalhada"></div>
     </section>
 
-  </div>
+  </main>
 
-  <!-- BOTTOM NAV -->
+  <!-- BOTTOM NAV mobile -->
   <nav class="bottom-nav">
-    <div class="bn active" onclick="irSecao('patio',this)" data-sec="patio"><span class="bn-icon">🔧</span>Pátio</div>
-    <div class="bn" onclick="irSecao('chat',this)" data-sec="chat"><span class="bn-icon">💬</span>Chat<span class="bn-badge" id="chatBadgeMob">0</span></div>
-    <div class="bn" onclick="irSecao('comissoes',this)" data-sec="comissoes"><span class="bn-icon">💸</span>Comissões</div>
+    <div class="bn active" id="bn-patio" onclick="irSecao('patio',this)"><i class='bx bxs-wrench bn-icon'></i>Pátio</div>
+    <div class="bn" id="bn-chat" onclick="irSecao('chat',this)"><i class='bx bx-message-dots bn-icon'></i>Chat<span class="bn-badge" id="chatBadge">0</span></div>
+    <div class="bn" id="bn-comissoes" onclick="irSecao('comissoes',this)"><i class='bx bx-dollar-circle bn-icon'></i>Comissões</div>
+    <div class="bn" onclick="sair()"><i class='bx bx-log-out bn-icon'></i>Sair</div>
   </nav>
-</div>
+</div><!-- /app -->
 
-<!-- ══ MODAL OS ══ -->
-<div class="overlay" id="modalOS">
-<div class="modal">
-  <div class="m-hd">
-    <div class="m-title">📋 O.S. <span class="badge b-brand" id="osIdBadge" style="font-size:.58rem">NOVA</span></div>
-    <button class="m-close" onclick="closeModal('modalOS')">✕</button>
-  </div>
-  <div class="m-tabs">
-    <div class="mtab active" onclick="swTab(this,'tp1','tp2','tp3')">DADOS</div>
-    <div class="mtab" onclick="swTab(this,'tp2','tp1','tp3')">ORÇAMENTO</div>
-    <div class="mtab" onclick="swTab(this,'tp3','tp1','tp2')">PROVAS/HISTÓRICO</div>
-  </div>
 
-  <!-- TAB DADOS -->
-  <div class="tab-pane active" id="tp1">
-    <div class="fr2" style="margin-bottom:10px">
-      <div class="fg"><label class="lbl">Tipo Veículo</label><select class="sel" id="osTipo" onchange="filtrarVeics()"><option value="carro">🚗 Carro</option><option value="moto">🏍️ Moto</option><option value="bicicleta">🚲 Bicicleta</option></select></div>
-      <div class="fg"><label class="lbl">Status</label><select class="sel" id="osStatus"><option value="Aguardando">Triagem</option><option value="Orcamento">Orçamento</option><option value="Aprovado">Aprovado</option><option value="Andamento">Em Serviço</option><option value="Concluido">Concluído</option></select></div>
-    </div>
-    <div class="fg"><label class="lbl">Cliente</label><select class="sel" id="osCliente" onchange="filtrarVeics()"></select></div>
-    <div class="fg"><label class="lbl">Veículo</label><select class="sel" id="osVeiculo"></select></div>
-    <div class="fr2" style="margin-bottom:10px">
-      <div class="fg"><label class="lbl">Data</label><input type="date" class="inp" id="osData"></div>
-      <div class="fg"><label class="lbl">KM</label><input type="number" class="inp" id="osKm" placeholder="45000"></div>
-    </div>
-    <div class="fg"><label class="lbl">Defeito / Serviço</label><textarea class="ta" id="osDesc" rows="3" placeholder="Descreva o problema ou serviço..."></textarea></div>
-    <div class="fg"><label class="lbl">Diagnóstico Técnico</label><textarea class="ta" id="osDiag" rows="2" placeholder="Diagnóstico interno..."></textarea></div>
-  </div>
-
-  <!-- TAB ORÇAMENTO -->
-  <div class="tab-pane" id="tp2">
-    <div class="fg"><label class="lbl">Mão de Obra (R$)</label><input type="number" step="0.01" class="inp" id="osMO" value="0" oninput="calcTotal()"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="lbl" style="margin:0">Peças</div>
-      <button type="button" class="btn btn-success btn-sm" onclick="adicionarPeca()">+ PEÇA</button>
-    </div>
-    <div id="containerPecas" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(34,211,160,.06);border:1px dashed rgba(34,211,160,.25);border-radius:var(--r-md)">
-      <span style="font-family:var(--ff-mono);font-size:.64rem;color:var(--text-muted)">TOTAL:</span>
-      <span style="font-family:var(--ff-display);font-size:1.7rem;font-weight:800;color:var(--success)">R$ <span id="totalVal">0,00</span></span>
-      <input type="hidden" id="totalHidden" value="0">
-    </div>
-  </div>
-
-  <!-- TAB PROVAS/HISTÓRICO -->
-  <div class="tab-pane" id="tp3">
-    <div style="margin-bottom:14px">
-      <div style="font-family:var(--ff-display);font-weight:700;margin-bottom:10px;color:var(--brand)">📸 GALERIA DE PROVAS</div>
-      <div class="upload-btns">
-        <button type="button" class="upload-btn" onclick="_openCamera()">📷 Câmera</button>
-        <button type="button" class="upload-btn" onclick="_openGallery()">🖼️ Galeria</button>
+<!-- ════════════════════════════════════════
+     MODAL: FICHA DA O.S. (padrão Chevron)
+════════════════════════════════════════ -->
+<div id="detailsModal" class="modal fixed inset-0 z-50 hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-6xl">
+    <div class="modal-header">
+      <div class="flex justify-between items-start">
+        <h2 class="text-2xl font-bold text-gray-800">Detalhes da Ordem de Serviço</h2>
+        <button id="btnCloseDetails" class="text-3xl text-gray-400 hover:text-gray-600 leading-none">&times;</button>
       </div>
-      <input type="file" id="mediaFile" accept="image/*,video/*" style="display:none" multiple>
-      <input type="file" id="mediaCamera" accept="image/*" capture="environment" style="display:none">
-      <button class="btn btn-brand btn-sm btn-full" onclick="uploadMedia()" id="btnUpload" style="margin-bottom:10px">FAZER UPLOAD</button>
-      <div class="media-grid" id="mediaGrid"></div>
-      <input type="hidden" id="mediaArray" value="[]">
     </div>
-    <div class="divider"></div>
-    <!-- LOG RÁPIDO -->
-    <div style="font-family:var(--ff-display);font-weight:700;font-size:.84rem;margin-bottom:10px">➕ Adicionar ao Histórico</div>
-    <div class="fg"><textarea class="ta" id="logDesc" rows="2" placeholder="Serviço realizado, observação..."></textarea></div>
-    <button class="btn btn-brand btn-full" onclick="addLog()" style="margin-bottom:12px">✓ REGISTRAR NO HISTÓRICO</button>
-    <!-- Checklist -->
-    <div style="font-family:var(--ff-display);font-weight:700;font-size:.84rem;margin-bottom:10px;color:var(--warn)">✅ CHECKLIST</div>
-    <div class="fr2" style="margin-bottom:10px">
-      <div class="fg"><label class="lbl">Pneu Dianteiro %</label><input type="number" class="inp" id="chkPD" placeholder="0-100" max="100"></div>
-      <div class="fg"><label class="lbl">Pneu Traseiro %</label><input type="number" class="inp" id="chkPT" placeholder="0-100" max="100"></div>
-    </div>
-    <div class="fg"><label class="lbl">Combustível</label><select class="sel" id="chkComb"><option>N/A</option><option>Reserva</option><option>1/4</option><option>Meio</option><option>3/4</option><option>Cheio</option></select></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <label style="display:flex;align-items:center;gap:8px;padding:9px;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.82rem"><input type="checkbox" id="chkPainel" style="accent-color:var(--brand);width:17px;height:17px"> Painel OK</label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.82rem"><input type="checkbox" id="chkPressao" style="accent-color:var(--brand);width:17px;height:17px"> Pressão OK</label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.82rem"><input type="checkbox" id="chkCar" style="accent-color:var(--brand);width:17px;height:17px"> Carroceria OK</label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.82rem"><input type="checkbox" id="chkDoc" style="accent-color:var(--brand);width:17px;height:17px"> Docs OK</label>
-    </div>
-    <div class="fg"><label class="lbl">Avarias / Observações</label><textarea class="ta" id="chkObs" rows="2" placeholder="Arranhões, amassados..."></textarea></div>
-    <!-- Timeline -->
-    <div class="divider"></div>
-    <div style="font-family:var(--ff-mono);font-size:.56rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">HISTÓRICO</div>
-    <div id="osTimeline"></div>
-  </div>
+    <div class="modal-body">
+      <div class="os-details-container">
 
-  <div class="m-foot">
-    <button class="btn btn-ghost btn-sm" onclick="closeModal('modalOS')">Cancelar</button>
-    <button class="btn btn-brand" onclick="salvarOS()">SALVAR O.S.</button>
+        <!-- Header da OS -->
+        <div class="os-header">
+          <div id="detailsHeader" class="flex justify-between items-start flex-wrap gap-4"></div>
+          <div id="detailsObs" class="hidden mt-4 pt-4 border-t border-gray-200"></div>
+        </div>
+
+        <!-- Conteúdo: galeria+timeline | ações -->
+        <div class="os-content">
+
+          <!-- ESQUERDA: galeria + timeline -->
+          <div class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-4">
+              <h3 class="section-title">Galeria de Mídia</h3>
+              <div id="thumbnailGrid" class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-4"></div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+              <h3 class="section-title">Histórico da O.S.</h3>
+              <div id="timelineContainer" class="timeline mt-4 space-y-6"></div>
+            </div>
+          </div>
+
+          <!-- DIREITA: ações -->
+          <div class="os-actions-section space-y-5">
+
+            <!-- ADICIONAR LOG -->
+            <div class="bg-white rounded-lg shadow p-4">
+              <h3 class="section-title">Adicionar Atualização</h3>
+              <form id="logForm" class="space-y-3">
+                <input type="hidden" id="logOsId">
+                <textarea id="logDescricao" placeholder="Descrição do serviço, peça, observação..." rows="3" required
+                  class="p-2 border rounded w-full text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
+                <div class="flex gap-2">
+                  <input id="logPecas" type="text" placeholder="Peças (opcional)" class="p-2 border rounded w-1/2 text-sm">
+                  <input id="logValor" type="number" step="0.01" placeholder="Valor R$" class="p-2 border rounded w-1/2 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <button type="button" id="btnCamera"
+                    class="w-full btn bg-gray-600 hover:bg-gray-700 text-white py-2 text-sm">
+                    <i class='bx bxs-camera'></i> Câmera
+                  </button>
+                  <button type="button" id="btnGaleria"
+                    class="w-full btn bg-gray-600 hover:bg-gray-700 text-white py-2 text-sm">
+                    <i class='bx bxs-image-add'></i> Galeria
+                  </button>
+                </div>
+                <input id="mediaInput" type="file" class="hidden" multiple accept="image/*,video/*,application/pdf">
+                <p id="fileLabel" class="text-xs text-gray-500 truncate"></p>
+                <button type="submit" class="w-full btn bg-green-600 hover:bg-green-700 text-white py-2">
+                  <i class='bx bx-message-square-add'></i> Adicionar ao Histórico
+                </button>
+              </form>
+              <!-- Pós-log: mover status -->
+              <div id="postLogActions" class="hidden mt-4 border-t pt-4 space-y-2">
+                <h4 class="font-semibold text-gray-700 text-center text-sm">Registro salvo! Mover O.S.?</h4>
+                <button id="btnMoveNext" class="w-full btn bg-blue-500 hover:bg-blue-600 text-white">
+                  <i class='bx bx-right-arrow-alt'></i> Avançar Status
+                </button>
+                <button id="btnMovePrev" class="w-full btn bg-yellow-500 hover:bg-yellow-600 text-white">
+                  <i class='bx bx-left-arrow-alt'></i> Retroceder Status
+                </button>
+                <button id="btnStay" class="w-full btn bg-gray-400 hover:bg-gray-500 text-white">
+                  <i class='bx bx-check'></i> Apenas Atualizar
+                </button>
+              </div>
+            </div>
+
+            <!-- ATUALIZAR KM -->
+            <div class="bg-white rounded-lg shadow p-4">
+              <form id="kmForm">
+                <h4 class="font-semibold text-gray-700 mb-2 text-sm">Atualizar KM</h4>
+                <div class="flex gap-2">
+                  <input id="kmInput" type="number" placeholder="Nova KM"
+                    class="p-2 border rounded w-full text-sm">
+                  <button type="submit" class="btn bg-blue-500 hover:bg-blue-600 text-white px-3" title="Salvar KM">
+                    <i class='bx bx-save'></i>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- ══ MENSAGEM AO CLIENTE (5 templates) ══ -->
+            <div class="bg-white rounded-lg shadow p-4">
+              <h3 class="section-title text-sm">📤 Mensagem ao Cliente</h3>
+              <div id="msgTemplatesArea" class="space-y-1.5 mb-3"></div>
+              <textarea id="msgTexto" rows="5"
+                class="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Edite o texto antes de enviar..."></textarea>
+              <button id="btnEnviarWppOS"
+                class="w-full btn bg-green-600 hover:bg-green-700 text-white mt-2 py-2.5 text-sm">
+                <i class='bx bxl-whatsapp text-lg'></i> Enviar pelo WhatsApp
+              </button>
+            </div>
+
+            <!-- EXPORTAR -->
+            <div class="bg-white rounded-lg shadow p-4">
+              <button id="btnExportarOS" class="w-full btn bg-gray-700 hover:bg-gray-800 text-white py-2">
+                <i class='bx bx-printer'></i> Exportar / Imprimir O.S.
+              </button>
+            </div>
+
+            <!-- EXCLUIR -->
+            <div class="bg-white rounded-lg shadow p-4">
+              <button id="deleteOsBtn" class="w-full btn bg-red-600 hover:bg-red-700 text-white hidden py-2">
+                <i class='bx bx-trash'></i> Excluir O.S.
+              </button>
+            </div>
+
+          </div><!-- /ações -->
+        </div><!-- /os-content -->
+      </div><!-- /os-details-container -->
+    </div><!-- /modal-body -->
   </div>
-  <input type="hidden" id="osId">
-  <input type="hidden" id="tlData" value="[]">
-</div>
 </div>
 
-<!-- ══ SCRIPTS ══ -->
+
+<!-- ════════════════════════════════════════
+     MODAL: NOVA O.S.
+════════════════════════════════════════ -->
+<div id="osModal" class="modal fixed inset-0 z-50 hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-lg">
+    <div class="modal-header">
+      <h2 id="osTitulo" class="text-2xl font-bold text-gray-800">Nova Ordem de Serviço</h2>
+    </div>
+    <div class="modal-body">
+      <form id="osForm" class="space-y-4">
+        <input type="hidden" id="osId">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Placa</label>
+            <input id="osPlaca" type="text" placeholder="ABC1234" required
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+            <input id="osModelo" type="text" placeholder="Ex: Gol, Corolla" required
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente</label>
+            <input id="osCliente" type="text" placeholder="Nome completo" required
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Telefone / WhatsApp</label>
+            <input id="osTelefone" type="tel" placeholder="(11) 99999-9999"
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">KM do Veículo</label>
+            <input id="osKm" type="number" placeholder="Ex: 50000"
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Queixa / Observações Iniciais</label>
+            <textarea id="osObservacoes" placeholder="Barulho no motor, vazamento..." rows="3"
+              class="p-2 border rounded w-full focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nível de Urgência</label>
+            <div class="flex items-center gap-5">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="osPrioridade" value="verde" checked class="h-4 w-4"> 🟢 Normal</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="osPrioridade" value="amarelo" class="h-4 w-4"> 🟡 Urgente</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="osPrioridade" value="vermelho" class="h-4 w-4"> 🔴 Imediato</label>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button id="cancelOS" class="btn bg-gray-200 hover:bg-gray-300 text-gray-800">Cancelar</button>
+      <button type="submit" form="osForm" class="btn bg-blue-600 hover:bg-blue-700 text-white">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MODAL: MENSAGEM AO CLIENTE (standalone)
+════════════════════════════════════════ -->
+<div id="msgModal" class="modal fixed inset-0 z-50 hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-md">
+    <div class="modal-header">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-gray-800">📤 Mensagem ao Cliente</h2>
+        <button id="closeMsgModal" class="text-3xl text-gray-400 hover:text-gray-600 leading-none">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Selecionar O.S. ativa</label>
+        <select id="msgOsSelect"
+          class="p-2 border rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Selecione uma O.S....</option>
+        </select>
+      </div>
+      <div id="msgTemplatesModal">
+        <p class="text-sm text-gray-500 text-center py-4">Selecione uma O.S. acima para ver os templates</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Prévia / Editar antes de enviar</label>
+        <textarea id="msgPreview" rows="7"
+          class="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          placeholder="Selecione um template..."></textarea>
+      </div>
+      <button id="btnEnviarWppModal"
+        class="w-full btn bg-green-600 hover:bg-green-700 text-white py-3 text-base">
+        <i class='bx bxl-whatsapp text-xl'></i> Abrir WhatsApp e Enviar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     MODAIS DE CONFIRMAÇÃO
+════════════════════════════════════════ -->
+<div id="confDelOS" class="modal fixed inset-0 z-[101] hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-sm">
+    <div class="modal-header"><h2 class="text-lg font-bold text-red-600 flex items-center gap-2"><i class='bx bxs-error-circle'></i> Excluir O.S.</h2></div>
+    <div class="modal-body"><p id="confDelOSTxt" class="text-gray-700"></p></div>
+    <div class="modal-footer"><button id="confDelOSCancel" class="btn bg-gray-200 text-gray-800">Cancelar</button><button id="confDelOSOk" class="btn bg-red-600 hover:bg-red-700 text-white">Excluir</button></div>
+  </div>
+</div>
+
+<div id="confDelLog" class="modal fixed inset-0 z-[101] hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-sm">
+    <div class="modal-header"><h2 class="text-lg font-bold text-red-600 flex items-center gap-2"><i class='bx bxs-error-circle'></i> Excluir Registro</h2></div>
+    <div class="modal-body"><p class="text-gray-700">Excluir este registro do histórico?</p></div>
+    <div class="modal-footer"><button id="confDelLogCancel" class="btn bg-gray-200 text-gray-800">Cancelar</button><button id="confDelLogOk" class="btn bg-red-600 hover:bg-red-700 text-white">Excluir</button></div>
+  </div>
+</div>
+
+<div id="confDelMedia" class="modal fixed inset-0 z-[101] hidden items-center justify-center p-4">
+  <div class="modal-content w-full max-w-sm">
+    <div class="modal-header"><h2 class="text-lg font-bold text-red-600 flex items-center gap-2"><i class='bx bxs-error-circle'></i> Excluir Mídia</h2></div>
+    <div class="modal-body"><p class="text-gray-700">Excluir esta mídia permanentemente?</p></div>
+    <div class="modal-footer"><button id="confDelMediaCancel" class="btn bg-gray-200 text-gray-800">Cancelar</button><button id="confDelMediaOk" class="btn bg-red-600 hover:bg-red-700 text-white">Excluir</button></div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     LIGHTBOX (padrão Chevron)
+════════════════════════════════════════ -->
+<div id="lightbox" class="modal fixed inset-0 z-[100] hidden items-center justify-center p-4">
+  <div class="absolute inset-0" id="lbBg"></div>
+  <div class="relative bg-black bg-opacity-50 p-4 rounded-lg max-w-4xl w-full">
+    <div id="lbContent" class="flex items-center justify-center min-h-[300px]"></div>
+    <button id="lbClose" class="absolute -top-2 -right-2 bg-white text-black rounded-full h-8 w-8 flex items-center justify-center text-lg font-bold">&times;</button>
+    <button id="lbPrev" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white text-black p-2 rounded-full"><i class='bx bx-chevron-left text-2xl'></i></button>
+    <button id="lbNext" class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white text-black p-2 rounded-full"><i class='bx bx-chevron-right text-2xl'></i></button>
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+      <a id="lbDownload" href="#" download class="bg-blue-600 text-white p-2 rounded-full"><i class='bx bxs-download'></i></a>
+      <button id="lbCopy" class="bg-blue-600 text-white p-2 rounded-full"><i class='bx bx-copy'></i></button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     FIREBASE + CONFIG + SCRIPTS
+════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="js/config.js"></script>
+
 <script>
 'use strict';
 
-const _$ = id => document.getElementById(id);
-const _v = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
-const _sv = (id,v) => { const el=document.getElementById(id); if(el) el.value=v??''; };
-const _st = (id,t) => { const el=document.getElementById(id); if(el) el.textContent=t??''; };
-const _sh = (id,h) => { const el=document.getElementById(id); if(el) el.innerHTML=h??''; };
-const moeda = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0);
-const dtBr   = iso => { try{ return iso?new Date(iso).toLocaleDateString('pt-BR'):'—'; }catch{return iso||'—';} };
-const dtHrBr = iso => { try{ return iso?new Date(iso).toLocaleString('pt-BR'):'—'; }catch{return iso||'—';} };
-
-// SESSÃO
+/* ─────────────────────────────────────────
+   SESSÃO (vem do index.html / JARVIS)
+───────────────────────────────────────── */
 const J = {
   tid:         sessionStorage.getItem('j_tid'),
-  role:        sessionStorage.getItem('j_role'),
-  nome:        sessionStorage.getItem('j_nome')   || 'Mecânico',
-  tnome:       sessionStorage.getItem('j_tnome')  || 'Oficina',
+  role:        sessionStorage.getItem('j_role')    || 'equipe',
+  nome:        sessionStorage.getItem('j_nome')    || 'Mecânico',
+  tnome:       sessionStorage.getItem('j_tnome')   || 'Oficina',
   fid:         sessionStorage.getItem('j_fid'),
-  comissao:    parseFloat(sessionStorage.getItem('j_comissao')||0),
-  cloudName:   sessionStorage.getItem('j_cloud_name')  ||'dmuvm1o6m',
-  cloudPreset: sessionStorage.getItem('j_cloud_preset')||'evolution',
-  brand:       JSON.parse(sessionStorage.getItem('j_brand')||'null')
+  comissao:    parseFloat(sessionStorage.getItem('j_comissao') || 0),
+  cloudName:   sessionStorage.getItem('j_cloud_name')   || 'dmuvm1o6m',
+  cloudPreset: sessionStorage.getItem('j_cloud_preset') || 'evolution',
+  brand:       JSON.parse(sessionStorage.getItem('j_brand') || 'null')
 };
-if (!J.tid || J.role==='admin') window.location.replace('index.html');
 
 const db = window.initFirebase();
 if (J.brand) window.aplicarBrand(J.brand);
 
-// UI base
-_st('tbTenantNome', J.tnome);
-_st('topNome', J.nome);
+/* ─────────────────────────────────────────
+   ESTADO GLOBAL
+───────────────────────────────────────── */
+let allOS       = {};   // osId → OS object
+let lbMedia     = [];   // lightbox items
+let lbIdx       = 0;
+let filesToUp   = [];   // fila de upload
+let chatItems   = [];
+let dbComissoes = [];
 
-// STATE
-let dbOS=[], dbClientes=[], dbVeiculos=[], dbEstoque=[], dbMsgs=[];
+/* ─────────────────────────────────────────
+   CONSTANTES
+───────────────────────────────────────── */
+const STATUS_LIST = [
+  'Aguardando-Mecanico','Em-Analise','Orcamento-Enviado',
+  'Aguardando-Aprovacao','Servico-Autorizado','Em-Execucao',
+  'Finalizado-Aguardando-Retirada','Entregue'
+];
+const ATENCAO_STATUSES = {
+  'Aguardando-Mecanico': { label:'AGUARDANDO MECÂNICO', color:'yellow', blink:'blinking-aguardando' },
+  'Servico-Autorizado':  { label:'SERVIÇO AUTORIZADO',  color:'green',  blink:'blinking-autorizado' }
+};
+const ROLES_DEL = ['admin','gestor','atendente','gerente'];
+const fmtS   = s => s.replace(/-/g,' ');
+const moeda  = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0);
+const dtBr   = iso => { try{ return iso?new Date(iso).toLocaleDateString('pt-BR'):'—'; }catch{return iso||'—';} };
+const dtHrBr = iso => { try{ return iso?new Date(iso).toLocaleString('pt-BR'):'—'; }catch{return iso||'—';} };
+const fmtKm  = v => v?new Intl.NumberFormat('pt-BR').format(v)+' km':'N/A';
 
-// ── TOAST ──
-function toast(msg, type='ok') {
-  const el = document.createElement('div');
-  el.className = `toast-j ${type}`; el.textContent = msg;
-  _$('toastBox').appendChild(el);
-  setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(),350); }, 3000);
+/* ─────────────────────────────────────────
+   NOTIFICAÇÃO
+───────────────────────────────────────── */
+function notify(msg, type='success') {
+  const ex = document.getElementById('_nf'); if (ex) ex.remove();
+  const n  = document.createElement('div');
+  n.id = '_nf'; n.className = `notification ${type}`; n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.classList.add('show'), 10);
+  setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 400); }, 3800);
 }
 
-// ── MODAL ──
-function openModal(id)  { const el=_$(id); if(el){ el.classList.add('open'); document.body.style.overflow='hidden'; } }
-function closeModal(id) { const el=_$(id); if(el){ el.classList.remove('open'); document.body.style.overflow=''; } }
-function swTab(el, a, ...rest) {
-  el.parentElement.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  _$(a)?.classList.add('active');
-  rest.forEach(r=>_$(r)?.classList.remove('active'));
-}
-function sair() { sessionStorage.clear(); window.location.href='index.html'; }
+/* ─────────────────────────────────────────
+   LOGIN LOCAL (quando não vem do JARVIS)
+───────────────────────────────────────── */
+if (!J.tid) {
+  // Mostra tela de login
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
 
-// ── NAVEGAÇÃO ──
-function irSecao(key, el) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.bn').forEach(b=>b.classList.remove('active'));
-  _$('s-'+key)?.classList.add('active');
-  if(el) el.classList.add('active');
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const usr = document.getElementById('loginUser').value.trim();
+    const pwd = document.getElementById('loginPass').value.trim();
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '';
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Autenticando...';
+    try {
+      const snap = await db.collection('funcionarios').where('usuario','==',usr).get();
+      if (snap.empty) throw new Error('Usuário não encontrado.');
+      const doc = snap.docs[0]; const d = doc.data();
+      if (d.senha !== pwd) throw new Error('Senha incorreta.');
+      const maeSnap = await db.collection('oficinas').doc(d.tenantId).get();
+      if (!maeSnap.exists) throw new Error('Oficina não encontrada.');
+      const md = maeSnap.data();
+      sessionStorage.setItem('j_tid',  d.tenantId);
+      sessionStorage.setItem('j_role', d.cargo==='gerente'?'gerente':'equipe');
+      sessionStorage.setItem('j_nome', d.nome);
+      sessionStorage.setItem('j_tnome',md.nomeFantasia||'Oficina');
+      sessionStorage.setItem('j_fid',  doc.id);
+      sessionStorage.setItem('j_comissao', d.comissao||0);
+      sessionStorage.setItem('j_cloud_name',  md.apiKeys?.cloudName  ||'dmuvm1o6m');
+      sessionStorage.setItem('j_cloud_preset',md.apiKeys?.cloudPreset||'evolution');
+      const brand = { name:md.brandName||md.nomeFantasia, logoLetter:(md.brandLetter||(md.nomeFantasia||'J').charAt(0)).toUpperCase(), color:md.brandColor||'#3B82F6' };
+      const rc=parseInt(brand.color.slice(1,3),16),gc=parseInt(brand.color.slice(3,5),16),bc2=parseInt(brand.color.slice(5,7),16);
+      brand.colorDim=`rgba(${rc},${gc},${bc2},.12)`;
+      sessionStorage.setItem('j_brand', JSON.stringify(brand));
+      location.reload();
+    } catch(err) {
+      errEl.textContent = err.message;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bx bx-log-in"></i> Entrar';
+    }
+  });
+
+} else {
+  // Sessão válida — inicia app
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  initApp();
 }
 
-// ── LISTENERS ──
-document.addEventListener('DOMContentLoaded', () => {
+/* ─────────────────────────────────────────
+   INIT APP
+───────────────────────────────────────── */
+function initApp() {
+  document.getElementById('topTenantNome').textContent = J.tnome;
+  document.getElementById('topUserInfo').textContent   = `🔧 ${J.nome}`;
+  document.getElementById('topUserNome').textContent   = J.nome;
+  document.getElementById('loginTitulo').textContent   = J.tnome;
+
+  initKanban();
+  listenOS();
+  listenChat();
+  if (J.fid) listenComissoes();
+  bindEvents();
+}
+
+/* ─────────────────────────────────────────
+   KANBAN INIT (padrão Chevron: colapsar por status)
+───────────────────────────────────────── */
+function initKanban() {
+  const saved = JSON.parse(localStorage.getItem('eq_collapsed') || '{}');
+  const board = document.getElementById('kanbanBoard');
+  board.innerHTML = STATUS_LIST.map(s => {
+    const collapsed = saved[s];
+    const searchHTML = s === 'Entregue'
+      ? `<div class="my-2"><input type="search" data-s="${s}" placeholder="Buscar placa..." class="w-full p-2 text-sm border border-gray-300 rounded-md focus:outline-none col-search"></div>`
+      : '';
+    const ledHTML = collapsed ? '<div class="column-led ml-2"></div>' : '';
+    return `
+      <div class="status-column p-4">
+        <div class="flex justify-between items-center cursor-pointer toggle-col mb-2" data-s="${s}">
+          <div class="flex items-center">
+            <h3 class="font-bold text-gray-800 text-sm">${fmtS(s)}</h3>
+            ${ledHTML}
+          </div>
+          <i class='bx bxs-chevron-down transition-transform ${collapsed?'rotate-180':''}'></i>
+        </div>
+        ${searchHTML}
+        <div class="space-y-3 vehicle-list ${collapsed?'collapsed':''}" data-s="${s}"></div>
+      </div>`;
+  }).join('');
+  updateAtencao();
+}
+
+/* ─────────────────────────────────────────
+   CARD HTML (botões ‹ › para mover sem abrir)
+───────────────────────────────────────── */
+function cardHTML(os) {
+  const i    = STATUS_LIST.indexOf(os.status);
+  const prev = i > 0                     ? STATUS_LIST[i-1] : null;
+  const next = i < STATUS_LIST.length-1  ? STATUS_LIST[i+1] : null;
+  const btnP = prev
+    ? `<button data-id="${os.id}" data-ns="${prev}" class="btn-move p-2 rounded-full hover:bg-gray-100"><i class='bx bx-chevron-left text-xl text-gray-600'></i></button>`
+    : `<div class="w-9 h-9"></div>`;
+  const btnN = next
+    ? `<button data-id="${os.id}" data-ns="${next}" class="btn-move p-2 rounded-full hover:bg-gray-100"><i class='bx bx-chevron-right text-xl text-gray-600'></i></button>`
+    : `<div class="w-9 h-9"></div>`;
+  const prio = os.priority
+    ? `<div class="priority-indicator priority-${os.priority}" title="Urgência: ${os.priority}"></div>`
+    : '';
+  return `
+    <div id="${os.id}" class="vehicle-card status-${os.status}" data-id="${os.id}">
+      ${prio}
+      <div class="flex justify-between items-start">
+        <div class="card-open flex-grow cursor-pointer pr-2">
+          <p class="font-bold text-base text-gray-800">${os.placa}</p>
+          <p class="text-sm text-gray-600 truncate">${os.modelo}</p>
+          ${os.cliente ? `<p class="text-xs text-blue-600 font-medium mt-0.5 truncate">${os.cliente}</p>` : ''}
+          <p class="text-xs text-gray-400 mt-0.5">KM: ${fmtKm(os.km)}</p>
+        </div>
+        <div class="flex flex-col -mt-1 -mr-2">${btnN}${btnP}</div>
+      </div>
+    </div>`;
+}
+
+/* ─────────────────────────────────────────
+   LISTENERS FIRESTORE
+───────────────────────────────────────── */
+function listenOS() {
   db.collection('ordens_servico').where('tenantId','==',J.tid).onSnapshot(snap => {
-    dbOS = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderKanban(); renderKPIs();
-  });
-  db.collection('clientes').where('tenantId','==',J.tid).onSnapshot(snap => {
-    dbClientes = snap.docs.map(d=>({id:d.id,...d.data()}));
-    popularSelects();
-  });
-  db.collection('veiculos').where('tenantId','==',J.tid).onSnapshot(snap => {
-    dbVeiculos = snap.docs.map(d=>({id:d.id,...d.data()}));
-    popularSelects();
-  });
-  db.collection('estoqueItems').where('tenantId','==',J.tid).onSnapshot(snap => {
-    dbEstoque = snap.docs.map(d=>({id:d.id,...d.data()}));
-  });
-  db.collection('chat_equipe').where('tenantId','==',J.tid).onSnapshot(snap => {
-    dbMsgs = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.ts||0)-(b.ts||0));
-    renderChat();
-    const nLidas = dbMsgs.filter(m=>m.sender==='admin'&&!m.lidaEquipe&&(m.para===J.fid||!m.para)).length;
-    const badge = _$('chatBadgeMob');
-    if(badge){ badge.textContent=nLidas; badge.classList.toggle('show', nLidas>0); }
-  });
-  if (J.fid) {
-    db.collection('financeiro').where('tenantId','==',J.tid).where('isComissao','==',true).where('mecId','==',J.fid).onSnapshot(snap => {
-      renderComissoes(snap.docs.map(d=>({id:d.id,...d.data()})));
+    snap.docChanges().forEach(ch => {
+      const os = { id: ch.doc.id, ...ch.doc.data() };
+      if (ch.type === 'added' || ch.type === 'modified') {
+        allOS[os.id] = os;
+        if (os.status === 'Entregue') {
+          renderEntregue();
+        } else {
+          const old = document.getElementById(os.id);
+          const lst = document.querySelector(`.vehicle-list[data-s="${os.status}"]`);
+          if (old) {
+            // Mesmo card: substituir se mudou coluna
+            if (old.className.includes(`status-${os.status}`)) {
+              old.outerHTML = cardHTML(os);
+            } else {
+              old.remove();
+              if (lst) lst.insertAdjacentHTML('beforeend', cardHTML(os));
+            }
+          } else if (lst) {
+            lst.insertAdjacentHTML('beforeend', cardHTML(os));
+          }
+          // Remover card órfão de coluna errada
+          document.querySelectorAll(`[id="${os.id}"]`).forEach(c => {
+            if (!c.className.includes(`status-${os.status}`)) c.remove();
+          });
+        }
+        // Atualizar modal se aberto para esta OS
+        const lid = document.getElementById('logOsId')?.value;
+        if (lid === os.id && !document.getElementById('detailsModal').classList.contains('hidden')) {
+          renderTimeline(os);
+          renderGaleria(os);
+        }
+      } else {
+        delete allOS[ch.doc.id];
+        const c = document.getElementById(ch.doc.id);
+        if (c) c.remove();
+      }
     });
+    updateKPIs();
+    updateAtencao();
+  });
+}
+
+function listenChat() {
+  db.collection('chat_equipe')
+    .where('tenantId','==',J.tid)
+    .orderBy('ts')
+    .onSnapshot(snap => {
+      chatItems = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      renderChat();
+      const n = chatItems.filter(m => m.sender==='admin' && !m.lidaEquipe).length;
+      const b = document.getElementById('chatBadge');
+      if (b) { b.textContent = n; b.classList.toggle('show', n > 0); }
+    });
+}
+
+function listenComissoes() {
+  db.collection('financeiro')
+    .where('tenantId','==',J.tid)
+    .where('isComissao','==',true)
+    .where('mecId','==',J.fid)
+    .onSnapshot(snap => {
+      dbComissoes = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      renderComissoes();
+      const tot = dbComissoes.filter(f=>f.status==='Pendente').reduce((a,f)=>a+(f.valor||0),0);
+      document.getElementById('kComissao').textContent = moeda(tot);
+    });
+}
+
+/* ─────────────────────────────────────────
+   COLUNA "ENTREGUE" (debounce + busca)
+───────────────────────────────────────── */
+function renderEntregue() {
+  const list = document.querySelector('.vehicle-list[data-s="Entregue"]'); if (!list) return;
+  const inp  = document.querySelector('.col-search[data-s="Entregue"]');
+  const term = inp ? inp.value.toUpperCase() : '';
+  let items  = Object.values(allOS).filter(o => o.status === 'Entregue');
+  if (term) items = items.filter(o => (o.placa||'').toUpperCase().includes(term) || (o.modelo||'').toUpperCase().includes(term));
+  items.sort((a,b) => new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+  list.innerHTML = items.map(o => cardHTML(o)).join('');
+}
+
+/* ─────────────────────────────────────────
+   PAINEL DE ATENÇÃO (animações Chevron)
+───────────────────────────────────────── */
+function updateAtencao() {
+  const panel  = document.getElementById('attention-panel');
+  const cont   = document.getElementById('attention-panel-container');
+  const led    = document.getElementById('alert-led');
+  let hasAlert = false;
+
+  panel.innerHTML = Object.entries(ATENCAO_STATUSES).map(([key, cfg]) => {
+    const lista = Object.values(allOS).filter(o => o.status === key);
+    if (lista.length) hasAlert = true;
+    const col   = cont.classList.contains('collapsed');
+    const blink = (lista.length && !col) ? cfg.blink : '';
+    const veics = lista.length
+      ? lista.map(o => `<p class="cursor-pointer atv-vehicle text-white hover:text-blue-300 text-xs truncate" data-id="${o.id}">${o.placa} - ${o.modelo}</p>`).join('')
+      : `<p class="text-gray-400 text-xs">- Vazio -</p>`;
+    return `
+      <div class="attention-box p-2 rounded-md bg-gray-900 border-2 border-gray-700 ${blink}">
+        <h3 class="text-center text-${cfg.color}-400 font-bold text-xs sm:text-sm truncate">${cfg.label}</h3>
+        <div class="mt-1 text-center space-y-0.5 h-16 overflow-y-auto">${veics}</div>
+      </div>`;
+  }).join('');
+
+  if (led) led.classList.toggle('hidden', !(hasAlert && cont.classList.contains('collapsed')));
+}
+
+/* ─────────────────────────────────────────
+   KPIs
+───────────────────────────────────────── */
+function updateKPIs() {
+  document.getElementById('kMeusOS').textContent = Object.values(allOS).filter(o => o.mecId===J.fid && !['Entregue','Cancelado'].includes(o.status)).length;
+  document.getElementById('kEmExec').textContent = Object.values(allOS).filter(o => o.status==='Em-Execucao').length;
+}
+
+/* ─────────────────────────────────────────
+   MOVER STATUS (botões ‹ ›)
+───────────────────────────────────────── */
+async function moverStatus(osId, novoStatus) {
+  const os = allOS[osId]; if (!os) return;
+  const tl = [...(os.timeline || [])];
+  tl.push({
+    dt:   new Date().toISOString(),
+    user: J.nome,
+    acao: `Status alterado de "${fmtS(os.status)}" para "${fmtS(novoStatus)}"`,
+    tipo: 'status'
+  });
+  const upd = { status: novoStatus, updatedAt: new Date().toISOString(), timeline: tl };
+  if (novoStatus === 'Em-Execucao')  upd.responsibleForService  = J.nome;
+  if (novoStatus === 'Entregue')     upd.responsibleForDelivery = J.nome;
+  await db.collection('ordens_servico').doc(osId).update(upd);
+  notify(`${os.placa} → ${fmtS(novoStatus)}`, 'success');
+}
+
+/* ─────────────────────────────────────────
+   ABRIR MODAL DETALHES
+───────────────────────────────────────── */
+function abrirDetalhes(osId) {
+  const os = allOS[osId]; if (!os) { notify('O.S. não encontrada.','error'); return; }
+
+  document.getElementById('logOsId').value   = osId;
+  document.getElementById('logForm').reset();
+  filesToUp = [];
+  document.getElementById('fileLabel').textContent = '';
+  document.getElementById('postLogActions').classList.add('hidden');
+
+  // — Cabeçalho —
+  const sc = statusColor(os.status);
+  document.getElementById('detailsHeader').innerHTML = `
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">${os.placa}
+        <span class="text-gray-400 font-normal mx-1">—</span>
+        <span class="text-gray-700">${os.modelo}</span>
+      </h2>
+      <p class="text-gray-600 mt-1">
+        Cliente: <strong>${os.cliente || '—'}</strong>
+        ${os.telefone ? `<span class="text-gray-400 ml-2 text-sm">📞 ${os.telefone}</span>` : ''}
+      </p>
+      <p class="text-blue-800 font-bold mt-1 text-lg">KM: ${fmtKm(os.km)}</p>
+    </div>
+    <div class="grid grid-cols-2 gap-x-5 gap-y-1 text-sm bg-gray-50 rounded-lg p-3">
+      <div class="font-semibold text-gray-500">Atendente:</div><div>${os.responsible||'—'}</div>
+      <div class="font-semibold text-gray-500">Orçamento:</div><div>${os.responsibleForBudget||'—'}</div>
+      <div class="font-semibold text-gray-500">Serviço:</div><div>${os.responsibleForService||'—'}</div>
+      <div class="font-semibold text-gray-500">Entrega:</div><div>${os.responsibleForDelivery||'—'}</div>
+      <div class="font-semibold text-gray-500">Abertura:</div><div>${dtBr(os.createdAt)}</div>
+      <div class="font-semibold text-gray-500">Status:</div>
+      <div><span class="px-2 py-0.5 rounded-full text-xs font-bold text-white" style="background:${sc}">${fmtS(os.status)}</span></div>
+    </div>`;
+
+  // — Observações —
+  const obsEl = document.getElementById('detailsObs');
+  if (os.observacoes || os.desc) {
+    obsEl.innerHTML = `
+      <h4 class="text-sm font-semibold text-gray-500 mb-1">Queixa do Cliente / Observações:</h4>
+      <p class="text-gray-800 bg-yellow-50 border border-yellow-200 p-3 rounded-md whitespace-pre-wrap text-sm">${os.observacoes || os.desc}</p>`;
+    obsEl.classList.remove('hidden');
+  } else { obsEl.classList.add('hidden'); }
+
+  // — Botão excluir —
+  document.getElementById('deleteOsBtn').classList.toggle('hidden', !ROLES_DEL.includes(J.role));
+
+  // — Templates de mensagem —
+  renderMsgTemplateArea(os);
+
+  // — Timeline + Galeria —
+  renderTimeline(os);
+  renderGaleria(os);
+
+  const m = document.getElementById('detailsModal');
+  m.classList.remove('hidden'); m.classList.add('flex');
+}
+
+/* ─────────────────────────────────────────
+   STATUS COLOR HELPER
+───────────────────────────────────────── */
+function statusColor(s) {
+  return { 'Aguardando-Mecanico':'#f59e0b','Em-Analise':'#8b5cf6','Orcamento-Enviado':'#06b6d4','Aguardando-Aprovacao':'#d946ef','Servico-Autorizado':'#10b981','Em-Execucao':'#ef4444','Finalizado-Aguardando-Retirada':'#f97316','Entregue':'#6b7280' }[s] || '#94a3b8';
+}
+
+/* ─────────────────────────────────────────
+   TIMELINE RICA (padrão Chevron completo)
+   — tipos: log, status, value, media
+   — ícones coloridos, delete com marcação
+───────────────────────────────────────── */
+function renderTimeline(os) {
+  const cont = document.getElementById('timelineContainer');
+  const raw  = os.timeline || os.logs || [];
+  const logs = Array.isArray(raw) ? raw : Object.values(raw);
+
+  // Ordena do mais recente para o mais antigo
+  const sorted = [...logs].sort((a,b) =>
+    new Date(b.timestamp||b.dt||0) - new Date(a.timestamp||a.dt||0)
+  );
+
+  if (!sorted.length) {
+    cont.innerHTML = '<p class="text-gray-500 text-center py-4 text-sm">Nenhum registro ainda.</p>';
+    return;
   }
+
+  cont.innerHTML = sorted.map((log, li) => {
+    // Índice real no array original para referência
+    const realIdx = logs.findIndex(l =>
+      (l.timestamp||l.dt) === (log.timestamp||log.dt) && l.user === log.user
+    );
+    const date  = new Date(log.timestamp || log.dt || 0);
+    const fD    = date.toLocaleDateString('pt-BR');
+    const fT    = date.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    const tipo  = log.type || log.tipo || 'log';
+    const desc  = log.description || log.acao || log.descricao || '';
+    const pecas = log.parts || log.pecas || '';
+    const valor = log.value || log.valor || '';
+    const user  = log.user || '';
+    const excl  = desc.startsWith('ATT EXCLUIDA') || desc.startsWith('ATT EXCLUÍDA') || desc.startsWith('ATT EXCLUIDA');
+
+    // Ícone e classe por tipo
+    let iconClass = 'bx-message-detail', itemClass = 'timeline-item-log';
+    if (tipo === 'status')       { iconClass = 'bx-transfer';     itemClass = 'timeline-item-status'; }
+    else if (valor)              { iconClass = 'bx-dollar';        itemClass = 'timeline-item-value';  }
+    else if (tipo === 'media')   { iconClass = 'bx-camera';        itemClass = 'timeline-item-media';  }
+    else if (excl)               { iconClass = 'bx-x-circle';      itemClass = 'timeline-item-excluido'; }
+
+    const canDelete = ROLES_DEL.includes(J.role) && !excl;
+    const delBtn = canDelete
+      ? `<button class="delete-log-btn" data-id="${os.id}" data-idx="${realIdx}" title="Excluir"><i class='bx bx-x text-base'></i></button>`
+      : '';
+
+    const descHTML = excl
+      ? `<p class="text-red-400 italic text-sm">${desc}</p>`
+      : `<p class="text-gray-700 text-sm whitespace-pre-wrap">${desc}</p>`;
+
+    return `
+      <div class="timeline-item ${itemClass}">
+        <div class="timeline-icon"><i class='bx ${iconClass} text-sm'></i></div>
+        <div class="bg-white p-3 rounded-lg shadow-sm relative">
+          ${delBtn}
+          <div class="flex justify-between items-start mb-1 pr-5">
+            <h4 class="font-semibold text-gray-800 text-sm">${user}</h4>
+            <span class="text-xs text-gray-400 whitespace-nowrap ml-2">${fD} ${fT}</span>
+          </div>
+          ${descHTML}
+          ${pecas ? `<p class="text-gray-500 text-xs mt-1"><i class='bx bx-wrench text-xs'></i> <strong>Peças:</strong> ${pecas}</p>` : ''}
+          ${valor ? `<p class="text-green-600 text-sm mt-1 font-bold"><i class='bx bx-dollar'></i> R$ ${parseFloat(valor).toFixed(2)}</p>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─────────────────────────────────────────
+   GALERIA DE MÍDIA
+───────────────────────────────────────── */
+function renderGaleria(os) {
+  const grid = document.getElementById('thumbnailGrid');
+  const raw  = os.media || os.midia || [];
+  lbMedia    = (Array.isArray(raw) ? raw : Object.values(raw)).filter(m => m && (m.url||m.secure_url));
+
+  if (!lbMedia.length) {
+    grid.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400"><i class='bx bx-image text-4xl mb-2'></i><p class="text-sm">Nenhuma mídia adicionada</p></div>`;
+    return;
+  }
+
+  const canDel = ROLES_DEL.includes(J.role);
+  grid.innerHTML = lbMedia.map((m, idx) => {
+    const url  = m.url || m.secure_url || '';
+    const type = m.type || (url.match(/\.(mp4|webm|mov)/i)?'video/mp4':'image/jpeg');
+    const isImg = type.startsWith('image');
+    const isVid = type.startsWith('video');
+    const delHTML = canDel
+      ? `<button class="delete-media-btn" data-id="${os.id}" data-idx="${idx}" title="Excluir"><i class='bx bxs-trash'></i></button>`
+      : '';
+    const thumb = isImg
+      ? `<img src="${url}" loading="lazy" class="w-full h-full object-cover" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center h-full text-gray-400\\'><i class=\\'bx bxs-error-circle text-2xl\\'></i><p class=\\'text-xs mt-1\\'>Erro</p></div>'">`
+      : isVid
+        ? `<div class="flex flex-col items-center justify-center h-full bg-gray-100"><i class='bx bx-play-circle text-4xl text-blue-500'></i><p class="text-xs text-gray-500 mt-1">Vídeo</p></div>`
+        : `<div class="flex flex-col items-center justify-center h-full bg-gray-100"><i class='bx bxs-file-pdf text-4xl text-red-500'></i><p class="text-xs text-gray-500 mt-1">PDF</p></div>`;
+    return `
+      <div class="thumbnail-container aspect-square bg-gray-200 rounded-md overflow-hidden flex items-center justify-center relative">
+        ${delHTML}
+        <div class="w-full h-full cursor-pointer thumb-item" data-idx="${idx}">${thumb}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ─────────────────────────────────────────
+   LIGHTBOX
+───────────────────────────────────────── */
+function openLB(idx) {
+  if (!lbMedia.length) return;
+  lbIdx = idx;
+  const m    = lbMedia[idx];
+  const url  = m.url || m.secure_url || '';
+  const type = m.type || (url.match(/\.(mp4|webm|mov)/i)?'video/mp4':'image/jpeg');
+  const cont = document.getElementById('lbContent');
+  if (type === 'application/pdf') { window.open(url,'_blank'); return; }
+  cont.innerHTML = type.startsWith('image')
+    ? `<img src="${url}" class="max-w-full max-h-full object-contain" referrerpolicy="no-referrer">`
+    : `<video src="${url}" controls class="max-w-full max-h-full"></video>`;
+  document.getElementById('lbPrev').style.display = idx>0?'block':'none';
+  document.getElementById('lbNext').style.display = idx<lbMedia.length-1?'block':'none';
+  const dl = document.getElementById('lbDownload');
+  dl.href = url; dl.download = m.name || `media_${idx+1}`;
+  const lb = document.getElementById('lightbox');
+  lb.classList.remove('hidden'); lb.classList.add('flex');
+}
+
+/* ─────────────────────────────────────────
+   UPLOAD CLOUDINARY
+───────────────────────────────────────── */
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', J.cloudPreset);
+  const res  = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, { method:'POST', body:fd });
+  const data = await res.json();
+  if (!data.secure_url) throw new Error(data.error?.message || 'Falha no upload');
+  return { url:data.secure_url, type:file.type, name:file.name, timestamp:new Date().toISOString() };
+}
+
+/* ─────────────────────────────────────────
+   CHAT INTERNO
+───────────────────────────────────────── */
+function renderChat() {
+  const cont = document.getElementById('chatMsgs');
+  if (!chatItems.length) {
+    cont.innerHTML = '<div class="text-center text-gray-400 py-8 text-sm">Sem mensagens ainda</div>';
+    return;
+  }
+  cont.innerHTML = chatItems.map(m => {
+    // Marcar como lida
+    if (m.sender === 'admin' && !m.lidaEquipe)
+      db.collection('chat_equipe').doc(m.id).update({ lidaEquipe:true }).catch(()=>{});
+    const t   = m.ts ? new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const out = m.sender === 'equipe';
+    return `
+      <div class="flex ${out?'justify-end':'justify-start'}">
+        <div class="chat-bubble ${out?'out':'in'}">
+          <p class="text-xs font-semibold mb-0.5 ${out?'text-blue-200':'text-gray-500'}">${out?J.nome:(m.de||m.nome||'Admin')}</p>
+          ${m.msg}
+          <div class="chat-ts">${t}</div>
+        </div>
+      </div>`;
+  }).join('');
+  cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarChat() {
+  const inp = document.getElementById('chatInput');
+  const msg = inp.value.trim(); if (!msg) return;
+  await db.collection('chat_equipe').add({
+    tenantId:J.tid, de:J.fid, nome:J.nome, para:'admin',
+    sender:'equipe', msg, lidaAdmin:false, lidaEquipe:true, ts:Date.now()
+  });
+  inp.value = '';
+}
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarChat(); }
 });
 
-// ── KPIs ──
-function renderKPIs() {
-  _st('kMeusOS', dbOS.filter(o=>o.mecId===J.fid&&o.status!=='Concluido'&&o.status!=='Cancelado').length);
-  _st('kEmExec', dbOS.filter(o=>o.mecId===J.fid&&o.status==='Andamento').length);
-}
-
-// ── KANBAN ──
-function renderKanban() {
-  const busca = (_v('searchOS')||'').toLowerCase();
-  const statuses = ['Aguardando','Orcamento','Aprovado','Andamento','Concluido'];
-  const COR = {Aguardando:'var(--text-muted)',Orcamento:'var(--warn)',Aprovado:'var(--brand)',Andamento:'#F97316',Concluido:'var(--success)'};
-  const cols={},cnts={};
-  statuses.forEach(s=>{cols[s]=[];cnts[s]=0;});
-  dbOS.filter(o=>o.status!=='Cancelado').forEach(o=>{
-    const v=dbVeiculos.find(x=>x.id===o.veiculoId);
-    const c=dbClientes.find(x=>x.id===o.clienteId);
-    if(busca&&!v?.placa?.toLowerCase().includes(busca)&&!c?.nome?.toLowerCase().includes(busca)) return;
-    if(cols[o.status]){cols[o.status].push({os:o,v,c});cnts[o.status]++;}
-  });
-  statuses.forEach(s=>{
-    const cntEl=_$('cnt-'+s); if(cntEl) cntEl.textContent=cnts[s];
-    const colEl=_$('kb-'+s); if(!colEl) return;
-    if(!cols[s].length){
-      colEl.innerHTML='<div class="empty-state" style="padding:18px 8px"><div class="empty-icon" style="font-size:1rem;opacity:.35">📭</div><div style="font-size:.64rem;color:var(--text-muted)">Vazio</div></div>';
-      return;
-    }
-    colEl.innerHTML=cols[s].sort((a,b)=>new Date(b.os.updatedAt||0)-new Date(a.os.updatedAt||0)).map(({os,v,c})=>`
-      <div class="k-card" style="border-left-color:${COR[os.status]||'var(--text-muted)'}" onclick="prepOS('edit','${os.id}');openModal('modalOS')">
-        <div class="k-placa">${v?.placa||'S/PLACA'}</div>
-        <div class="k-cli">${c?.nome||'—'}</div>
-        <div class="k-desc">${os.desc||'Sem descrição'}</div>
-        <div class="k-foot">
-          <span class="k-tipo ${v?.tipo||'carro'}">${{carro:'🚗',moto:'🏍️',bicicleta:'🚲'}[v?.tipo]||'🚗'} ${(v?.tipo||'carro').toUpperCase()}</span>
-          <span style="font-family:var(--ff-mono);font-size:.56rem;color:var(--text-muted)">${dtBr(os.data)}</span>
-        </div>
-        ${os.total?`<div style="font-family:var(--ff-mono);font-size:.7rem;color:var(--success);text-align:right;margin-top:4px;font-weight:700">${moeda(os.total)}</div>`:''}
-      </div>`).join('');
-  });
-}
-
-// ── SELECTS ──
-function popularSelects() {
-  const cOpts='<option value="">Selecione...</option>'+dbClientes.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-  if(_$('osCliente')) _$('osCliente').innerHTML=cOpts;
-}
-function filtrarVeics() {
-  const cid=_v('osCliente'),tipo=_v('osTipo');
-  let veics=dbVeiculos.filter(v=>v.clienteId===cid);
-  if(tipo) veics=veics.filter(v=>v.tipo===tipo);
-  if(_$('osVeiculo')) _$('osVeiculo').innerHTML='<option value="">Selecione...</option>'+veics.map(v=>`<option value="${v.id}">${v.modelo} (${v.placa})</option>`).join('');
-}
-
-// ── OS ──
-function prepOS(mode, id=null) {
-  ['osId','osDesc','osDiag','osKm'].forEach(f=>_sv(f,''));
-  _sv('osMO','0'); _sv('osTipo','carro'); _sv('osStatus','Aguardando');
-  _sv('osData',new Date().toISOString().split('T')[0]);
-  _st('totalVal','0,00'); _sv('totalHidden','0');
-  _sh('containerPecas',''); _sh('mediaGrid',''); _sv('mediaArray','[]');
-  _sh('osTimeline',''); _sv('tlData','[]');
-  _st('osIdBadge','NOVA'); _sv('chkComb','N/A'); _sv('chkPD',''); _sv('chkPT',''); _sv('chkObs','');
-  ['chkPainel','chkPressao','chkCar','chkDoc'].forEach(f=>{const el=_$(f);if(el)el.checked=false;});
-  popularSelects();
-  if (mode==='edit'&&id) {
-    const os=dbOS.find(x=>x.id===id); if(!os) return;
-    _sv('osId',os.id); _st('osIdBadge','OS#'+os.id.slice(-5).toUpperCase());
-    _sv('osTipo',os.tipoVeiculo||'carro'); _sv('osStatus',os.status||'Aguardando');
-    _sv('osCliente',os.clienteId||''); filtrarVeics();
-    setTimeout(()=>_sv('osVeiculo',os.veiculoId||''),80);
-    _sv('osData',os.data||''); _sv('osKm',os.km||'');
-    _sv('osDesc',os.desc||''); _sv('osDiag',os.diagnostico||'');
-    _sv('osMO',os.maoObra||0);
-    _sv('chkComb',os.chkComb||'N/A'); _sv('chkPD',os.chkPneuDia||''); _sv('chkPT',os.chkPneuTra||''); _sv('chkObs',os.chkObs||'');
-    ['chkPainel','chkPressao','chkCar','chkDoc'].forEach(f=>{const el=_$(f);if(el)el.checked=!!(os[f]);});
-    _sv('mediaArray',JSON.stringify(os.media||[])); renderMediaGrid();
-    _sv('tlData',JSON.stringify(os.timeline||[])); renderTimeline();
-    if(os.pecas) os.pecas.forEach(p=>renderPecaRow(p));
-    calcTotal();
+/* ─────────────────────────────────────────
+   COMISSÕES
+───────────────────────────────────────── */
+function renderComissoes() {
+  const tot = dbComissoes.filter(f=>f.status==='Pendente').reduce((a,f)=>a+(f.valor||0),0);
+  const pag = dbComissoes.filter(f=>f.status==='Pago').reduce((a,f)=>a+(f.valor||0),0);
+  document.getElementById('kComTotal').textContent = moeda(tot);
+  document.getElementById('kComPago').textContent  = moeda(pag);
+  const box = document.getElementById('boxComissoes');
+  if (!dbComissoes.length) {
+    box.innerHTML = '<div class="bg-white rounded-xl p-6 text-center text-gray-400"><i class="bx bx-dollar-circle text-3xl mb-2"></i><p class="text-sm">Nenhuma comissão registrada</p></div>';
+    return;
   }
-}
-
-// ── PEÇAS ──
-function adicionarPeca() {
-  const div=document.createElement('div'); div.className='peca-row';
-  div.innerHTML=`
-    <select class="sel" onchange="selPeca(this)" style="font-size:14px">
-      <option value="">Selecionar...</option>
-      ${dbEstoque.filter(p=>(p.qtd||0)>0).map(p=>`<option value="${p.id}" data-v="${p.venda||0}" data-d="${p.desc||''}">[${p.qtd}un] ${p.desc}</option>`).join('')}
-    </select>
-    <input type="number" class="inp peca-qtd" value="1" min="1" oninput="calcTotal()" style="font-size:14px">
-    <input type="number" class="inp peca-venda" value="0" step="0.01" oninput="calcTotal()" style="font-size:14px">
-    <button type="button" class="btn btn-danger btn-icon btn-sm" onclick="this.closest('.peca-row').remove();calcTotal()">✕</button>
-  `;
-  _$('containerPecas').appendChild(div); calcTotal();
-}
-function renderPecaRow(p) {
-  const div=document.createElement('div'); div.className='peca-row';
-  div.innerHTML=`
-    <select class="sel" onchange="selPeca(this)" style="font-size:14px"><option value="${p.estoqueId||''}">${p.desc||''}</option></select>
-    <input type="number" class="inp peca-qtd" value="${p.qtd||1}" min="1" oninput="calcTotal()" style="font-size:14px">
-    <input type="number" class="inp peca-venda" value="${p.venda||0}" step="0.01" oninput="calcTotal()" style="font-size:14px">
-    <button type="button" class="btn btn-danger btn-icon btn-sm" onclick="this.closest('.peca-row').remove();calcTotal()">✕</button>
-  `;
-  _$('containerPecas').appendChild(div);
-}
-function selPeca(sel) { const opt=sel.options[sel.selectedIndex]; const row=sel.closest('.peca-row'); if(row) row.querySelector('.peca-venda').value=opt.dataset.v||0; calcTotal(); }
-function calcTotal() {
-  let t=parseFloat(_v('osMO'))||0;
-  document.querySelectorAll('#containerPecas .peca-row').forEach(r=>{ t+=(parseFloat(r.querySelector('.peca-qtd')?.value||0))*(parseFloat(r.querySelector('.peca-venda')?.value||0)); });
-  _st('totalVal',t.toFixed(2).replace('.',','));
-  _sv('totalHidden',t);
-}
-
-// ── SALVAR OS ──
-async function salvarOS() {
-  if(!_v('osCliente')||!_v('osVeiculo')){toast('⚠ Cliente e veículo obrigatórios','warn');return;}
-  const pecas=[];
-  document.querySelectorAll('#containerPecas .peca-row').forEach(r=>{
-    const sel=r.querySelector('select'); const opt=sel?.options[sel?.selectedIndex];
-    const qtd=parseFloat(r.querySelector('.peca-qtd')?.value||0);
-    if(qtd>0) pecas.push({estoqueId:sel?.value,desc:opt?.dataset.d||opt?.text||'',qtd,venda:parseFloat(r.querySelector('.peca-venda')?.value||0)});
-  });
-  const tl=JSON.parse(_v('tlData')||'[]');
-  tl.push({dt:new Date().toISOString(),user:J.nome,tipo:'log',acao:(_v('osId')?'Editou':'Abriu')+' O.S. — Status: '+_v('osStatus')});
-  const p={
-    tenantId:J.tid,tipoVeiculo:_v('osTipo'),clienteId:_v('osCliente'),veiculoId:_v('osVeiculo'),
-    mecId:J.fid,mecNome:J.nome,data:_v('osData'),km:_v('osKm'),
-    desc:_v('osDesc'),diagnostico:_v('osDiag'),status:_v('osStatus'),
-    maoObra:parseFloat(_v('osMO')||0),total:parseFloat(_v('totalHidden')||0),
-    pecas,media:JSON.parse(_$('mediaArray').value||'[]'),
-    chkComb:_v('chkComb'),chkPneuDia:_v('chkPD'),chkPneuTra:_v('chkPT'),chkObs:_v('chkObs'),
-    chkPainel:_$('chkPainel')?.checked,chkPressao:_$('chkPressao')?.checked,
-    chkCar:_$('chkCar')?.checked,chkDoc:_$('chkDoc')?.checked,
-    timeline:tl,updatedAt:new Date().toISOString()
-  };
-  const id=_v('osId');
-  if(id) await db.collection('ordens_servico').doc(id).update(p);
-  else { p.createdAt=new Date().toISOString(); await db.collection('ordens_servico').add(p); }
-  toast('✓ O.S. SALVA!'); closeModal('modalOS');
-}
-
-// ── LOG RÁPIDO ──
-async function addLog() {
-  const osId=_v('osId'); const desc=_v('logDesc');
-  if(!desc){toast('⚠ Descreva o serviço','warn');return;}
-  if(!osId){toast('⚠ Salve a O.S. primeiro','warn');return;}
-  const os=dbOS.find(x=>x.id===osId); if(!os) return;
-  const tl=[...(os.timeline||[])];
-  tl.push({dt:new Date().toISOString(),user:J.nome,tipo:'log',acao:desc});
-  await db.collection('ordens_servico').doc(osId).update({timeline:tl,updatedAt:new Date().toISOString()});
-  _sv('logDesc',''); toast('✓ Registro adicionado!');
-  _sv('tlData',JSON.stringify(tl)); renderTimeline();
-}
-
-// ── TIMELINE ──
-function renderTimeline() {
-  const tl=JSON.parse(_v('tlData')||'[]');
-  const el=_$('osTimeline'); if(!el) return;
-  if(!tl.length){el.innerHTML='<div style="color:var(--text-muted);font-size:.74rem;padding:6px 0">Sem registros</div>';return;}
-  const ic={status:'🔄',log:'💬',valor:'💰',midia:'📷',sistema:'⚙️'};
-  el.innerHTML=[...tl].reverse().map(e=>`
-    <div class="tl-item">
-      <div class="tl-icon">${ic[e.tipo||'log']||'💬'}</div>
-      <div class="tl-body">
-        <div class="tl-user">${e.user||'—'} <span class="tl-date" style="font-weight:400">${dtHrBr(e.dt)}</span></div>
-        <div class="tl-action">${e.acao||''}</div>
-        ${e.valor?`<div style="font-family:var(--ff-mono);font-size:.7rem;color:var(--success);font-weight:700">${moeda(e.valor)}</div>`:''}
+  box.innerHTML = dbComissoes.map(f => `
+    <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+      <div><p class="font-semibold text-gray-800 text-sm">${f.desc||'—'}</p><p class="text-xs text-gray-400">${dtBr(f.venc)}</p></div>
+      <div class="text-right">
+        <p class="font-bold text-lg ${f.status==='Pago'?'text-gray-400':'text-green-600'}">${moeda(f.valor)}</p>
+        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${f.status==='Pago'?'bg-gray-100 text-gray-500':'bg-green-100 text-green-700'}">${f.status}</span>
       </div>
     </div>`).join('');
 }
 
-// ── UPLOAD ──
-window._openCamera  = () => { const el=_$('mediaCamera'); if(el){el.value='';el.click();} };
-window._openGallery = () => { const el=_$('mediaFile');   if(el){el.value='';el.removeAttribute('capture');el.click();} };
-_$('mediaCamera')?.addEventListener('change', function() {
-  if(!this.files.length) return;
-  try{const dt=new DataTransfer();dt.items.add(this.files[0]);_$('mediaFile').files=dt.files;}catch(e){}
-});
+/* ─────────────────────────────────────────
+   5 TEMPLATES DE MENSAGEM AO CLIENTE
+───────────────────────────────────────── */
+function getTemplates(os) {
+  const portalUrl = `${location.origin}/cliente.html?tenant=${J.tid}`;
+  const login     = os.clienteLogin || os.cliLogin || '';
+  const pin       = os.clientePin   || os.cliPin   || '';
+  const nomeOs    = os.cliente || 'cliente';
+  const veiculo   = `${os.modelo || ''} (${os.placa || ''})`.trim();
+  const oficial   = J.tnome;
 
-async function uploadMedia() {
-  const f=_$('mediaFile')?.files[0]; if(!f){toast('⚠ Selecione um arquivo','warn');return;}
-  const btn=_$('btnUpload'); btn.innerHTML='<div class="spinner"></div>'; btn.disabled=true;
-  try{
-    const fd=new FormData(); fd.append('file',f); fd.append('upload_preset',J.cloudPreset);
-    const res=await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`,{method:'POST',body:fd});
-    const data=await res.json();
-    if(!data.secure_url) throw new Error(data.error?.message||'Falha no upload');
-    const media=JSON.parse(_$('mediaArray').value||'[]');
-    media.push({url:data.secure_url,type:data.resource_type,name:f.name});
-    _sv('mediaArray',JSON.stringify(media)); renderMediaGrid(); toast('✓ Upload OK!');
-  }catch(e){toast('✕ '+e.message,'err');}
-  btn.innerHTML='FAZER UPLOAD'; btn.disabled=false;
-  const fi=_$('mediaFile'); if(fi) fi.value='';
-}
-function renderMediaGrid() {
-  const media=JSON.parse(_$('mediaArray')?.value||'[]');
-  _sh('mediaGrid', media.length ? media.map((m,i)=>`
-    <div class="media-item">
-      ${m.type==='video'?`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surf-3);font-size:1.5rem;cursor:pointer" onclick="window.open('${m.url}','_blank')">▶</div>`
-        :`<img src="${m.url}" loading="lazy" referrerpolicy="no-referrer" onclick="window.open('${m.url}','_blank')" style="cursor:zoom-in">`}
-      <button class="media-del" onclick="rmMedia(${i})">✕</button>
-    </div>`).join('')
-    : '<div style="color:var(--text-muted);font-size:.74rem;padding:10px 0">Nenhum arquivo</div>');
-}
-function rmMedia(idx) {
-  const media=JSON.parse(_$('mediaArray').value||'[]');
-  media.splice(idx,1); _sv('mediaArray',JSON.stringify(media)); renderMediaGrid();
+  return [
+    {
+      icon: '🔗',
+      label: 'Acesso ao Portal do Cliente',
+      msg:
+`Olá ${nomeOs}! 👋
+
+Seu veículo *${veiculo}* está em atendimento na *${oficial}*.
+
+Acompanhe o serviço em tempo real pelo nosso Portal:
+👉 ${portalUrl}
+
+🔑 *Login:* ${login || '(solicite ao atendente)'}
+🔑 *PIN:* ${pin || '(solicite ao atendente)'}
+
+Pelo portal você pode:
+✅ Ver o status do seu veículo
+💬 Enviar mensagens para nossa equipe
+📸 Ver fotos do serviço
+💰 Aprovar orçamentos
+
+Qualquer dúvida, estamos à disposição! 🔧`
+    },
+    {
+      icon: '💰',
+      label: 'Orçamento aguardando aprovação',
+      msg:
+`Olá ${nomeOs}! 👋
+
+O orçamento do seu *${veiculo}* está pronto na *${oficial}*.
+
+💰 *Valor total: ${os.total ? moeda(os.total) : 'R$ —'}*
+
+Para *APROVAR* ou recusar o serviço, acesse seu portal:
+👉 ${portalUrl}
+
+🔑 Login: ${login || '(solicite)'}  |  PIN: ${pin || '(solicite)'}
+
+Aguardamos sua confirmação para dar início! 🚗`
+    },
+    {
+      icon: '✅',
+      label: 'Veículo pronto para retirada',
+      msg:
+`Olá ${nomeOs}! 🎉
+
+Boas notícias! Seu *${veiculo}* está *PRONTO* para retirada na *${oficial}*.
+
+Estaremos te aguardando! 🚗✨
+
+Acesse o portal para ver o relatório completo do serviço:
+👉 ${portalUrl}
+
+Obrigado pela confiança!`
+    },
+    {
+      icon: '⏳',
+      label: 'Veículo em análise / serviço iniciado',
+      msg:
+`Olá ${nomeOs}! 👋
+
+Seu *${veiculo}* chegou à *${oficial}* e já está sendo avaliado pela nossa equipe técnica.
+
+Em breve entraremos em contato com o diagnóstico e orçamento. 🔧
+
+Você pode acompanhar tudo em tempo real pelo portal:
+👉 ${portalUrl}`
+    },
+    {
+      icon: '📅',
+      label: 'Lembrete / Agendamento',
+      msg:
+`Olá ${nomeOs}! 👋
+
+Lembramos que você tem um veículo (*${veiculo}*) em atendimento na *${oficial}*.
+
+📞 Caso queira falar conosco ou agendar a próxima revisão, acesse:
+👉 ${portalUrl}
+
+Estamos à disposição! 🤝`
+    }
+  ];
 }
 
-// ── CHAT ──
-function renderChat() {
-  const cont=_$('chatMsgs'); if(!cont) return;
-  if(!dbMsgs.length){cont.innerHTML='<div class="empty-state"><div class="empty-icon">💬</div><div style="font-size:.74rem">Sem mensagens</div></div>';return;}
-  cont.innerHTML=dbMsgs.map(m=>{
-    if(m.sender==='admin'&&!m.lidaEquipe&&(m.para===J.fid||!m.para)) db.collection('chat_equipe').doc(m.id).update({lidaEquipe:true}).catch(()=>{});
-    const t=m.ts?new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-    const side=m.sender==='equipe'?'outgoing':'incoming';
-    const nome=m.sender==='equipe'?J.nome:(m.de||'Admin');
-    return `<div class="chat-msg ${side}"><strong style="font-size:.62rem;color:${side==='outgoing'?'var(--brand)':'var(--text-muted)'};">${nome}</strong><br>${m.msg}<div class="chat-ts">${t}</div></div>`;
+function renderMsgTemplateArea(os) {
+  const area  = document.getElementById('msgTemplatesArea');
+  const tmpls = getTemplates(os);
+  window._osAtivo   = os;
+  window._tmplsAtivos = tmpls;
+  area.innerHTML = tmpls.map((t,i) => `
+    <button class="tmpl-btn${i===0?' sel':''}" data-idx="${i}">
+      <span class="mr-1.5">${t.icon}</span>${t.label}
+    </button>`).join('');
+  document.getElementById('msgTexto').value = tmpls[0].msg;
+  // Eventos nos botões
+  area.querySelectorAll('.tmpl-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      area.querySelectorAll('.tmpl-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      document.getElementById('msgTexto').value = window._tmplsAtivos[parseInt(btn.dataset.idx)].msg;
+    });
+  });
+}
+
+/* ─────────────────────────────────────────
+   ENVIAR WHATSAPP
+───────────────────────────────────────── */
+function enviarWpp(msg, telefone) {
+  const tel = (telefone||'').replace(/\D/g,'');
+  if (!msg.trim())  { notify('Digite uma mensagem','warn'); return; }
+  if (!tel)         { notify('Cliente sem telefone cadastrado','warn'); return; }
+  window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+/* ─────────────────────────────────────────
+   EXPORTAR OS (impressão)
+───────────────────────────────────────── */
+function exportarOS(osId) {
+  const os = allOS[osId]; if (!os) return;
+  const raw = os.timeline || os.logs || [];
+  const logs = (Array.isArray(raw) ? raw : Object.values(raw))
+    .sort((a,b) => new Date(a.timestamp||a.dt||0) - new Date(b.timestamp||b.dt||0));
+  let totalValor = 0;
+  const rows = logs.map(l => {
+    if (l.value||l.valor) totalValor += parseFloat(l.value||l.valor||0);
+    const d = new Date(l.timestamp||l.dt||0);
+    return `<tr><td>${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${l.user||'—'}</td>
+      <td>${l.description||l.acao||'—'}</td>
+      <td>${l.parts||l.pecas||'—'}</td>
+      <td style="text-align:right">${l.value||l.valor?`R$ ${parseFloat(l.value||l.valor).toFixed(2)}`:'—'}</td>
+    </tr>`;
   }).join('');
-  cont.scrollTop=cont.scrollHeight;
+  const html = `<!DOCTYPE html><html><head><title>OS ${os.placa}</title>
+<style>body{font-family:Arial,sans-serif;margin:20px;color:#333}h1,h2{margin:0}
+table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #ddd;padding:8px;font-size:13px;text-align:left}
+th{background:#f5f5f5}.total{text-align:right;font-size:16px;font-weight:bold;margin-top:14px}.obs{background:#fef9c3;padding:10px;border-radius:4px;margin-top:8px}
+</style></head><body>
+<h1>${J.tnome} — Ordem de Serviço</h1>
+<hr style="margin:8px 0">
+<p><b>Placa:</b> ${os.placa} &nbsp; <b>Modelo:</b> ${os.modelo} &nbsp; <b>KM:</b> ${fmtKm(os.km)}</p>
+<p><b>Cliente:</b> ${os.cliente||'—'} &nbsp; <b>Tel:</b> ${os.telefone||'—'}</p>
+<p><b>Atendente:</b> ${os.responsible||'—'} &nbsp; <b>Abertura:</b> ${dtBr(os.createdAt)}</p>
+${(os.observacoes||os.desc)?`<div class="obs"><b>Queixa:</b> ${os.observacoes||os.desc}</div>`:''}
+<table><thead><tr><th>Data/Hora</th><th>Usuário</th><th>Descrição</th><th>Peças</th><th>Valor</th></tr></thead>
+<tbody>${rows||'<tr><td colspan="5" style="text-align:center">Sem registros</td></tr>'}</tbody></table>
+<p class="total">Total: R$ ${totalValor.toFixed(2)}</p>
+<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),100)}<\/script>
+</body></html>`;
+  const w = window.open('','_blank'); w.document.write(html); w.document.close();
 }
-async function enviarMsg() {
-  const msg=_v('chatInput'); if(!msg) return;
-  await db.collection('chat_equipe').add({tenantId:J.tid,de:J.fid,nome:J.nome,para:'admin',sender:'equipe',msg,lidaAdmin:false,lidaEquipe:true,ts:Date.now()});
-  _sv('chatInput','');
-}
-_$('chatInput')?.addEventListener('keydown', e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarMsg();}});
 
-// ── COMISSÕES ──
-function renderComissoes(fins) {
-  const total=fins.filter(f=>f.status==='Pendente').reduce((a,f)=>a+(f.valor||0),0);
-  const pago =fins.filter(f=>f.status==='Pago').reduce((a,f)=>a+(f.valor||0),0);
-  _st('kComPend',moeda(total).replace('R$','R$\n'));
-  _st('kComTotal',moeda(total));
-  _st('kComPago',moeda(pago));
-  const box=_$('boxComissaoDetalhada'); if(!box) return;
-  box.innerHTML = fins.length ? fins.map(f=>`
-    <div class="com-card">
-      <div>
-        <div class="com-name">${f.desc||'—'}</div>
-        <div class="com-lbl">${dtBr(f.venc)}</div>
-      </div>
-      <div style="text-align:right">
-        <div class="com-val" style="color:${f.status==='Pago'?'var(--text-muted)':'var(--success)'}">${moeda(f.valor)}</div>
-        <span class="badge ${f.status==='Pago'?'b-neutral':'b-success'}">${f.status}</span>
-      </div>
-    </div>`).join('')
-    : '<div class="empty-state"><div class="empty-icon">💰</div><div style="font-size:.78rem">Nenhuma comissão registrada</div></div>';
+/* ─────────────────────────────────────────
+   NAVEGAÇÃO ENTRE SEÇÕES
+───────────────────────────────────────── */
+function irSecao(key, el) {
+  ['patio','chat','comissoes'].forEach(s => {
+    document.getElementById(`sec-${s}`).classList.toggle('hidden', s !== key);
+  });
+  document.querySelectorAll('.bn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+function sair() { sessionStorage.clear(); window.location.href = 'index.html'; }
+function toggleMobileSearch() { document.getElementById('mobileSearchBar').classList.toggle('hidden'); }
+
+/* ─────────────────────────────────────────
+   BUSCA GLOBAL
+───────────────────────────────────────── */
+function buscar(term, resId) {
+  const t   = term.toUpperCase().trim();
+  const box = document.getElementById(resId);
+  if (!t) { box.classList.add('hidden'); return; }
+  const r = Object.values(allOS)
+    .filter(o => (o.placa||'').toUpperCase().includes(t) || (o.modelo||'').toUpperCase().includes(t) || (o.cliente||'').toUpperCase().includes(t))
+    .slice(0, 10);
+  box.innerHTML = r.length
+    ? r.map(o => `<div class="search-result-item" data-id="${o.id}">
+        <p class="font-bold text-sm">${o.placa} — ${o.modelo}</p>
+        <p class="text-xs text-gray-600">Status: <span class="font-semibold text-blue-700">${fmtS(o.status)}</span></p>
+      </div>`).join('')
+    : '<div class="p-3 text-center text-gray-500 text-sm">Nenhum resultado</div>';
+  box.classList.remove('hidden');
+}
+
+/* ─────────────────────────────────────────
+   BIND TODOS OS EVENTOS
+───────────────────────────────────────── */
+function bindEvents() {
+
+  // Toggle painel atenção
+  document.getElementById('togglePanelBtn').addEventListener('click', () => {
+    const c = document.getElementById('attention-panel-container');
+    c.classList.toggle('collapsed');
+    document.getElementById('togglePanelBtn').querySelector('i').classList.toggle('rotate-180');
+    updateAtencao();
+  });
+
+  // Clique no painel de atenção → abre OS
+  document.getElementById('attention-panel').addEventListener('click', e => {
+    const v = e.target.closest('.atv-vehicle');
+    if (v) abrirDetalhes(v.dataset.id);
+  });
+
+  // Kanban: card abre detalhes / botão ‹ › move / toggle colapsa coluna
+  document.getElementById('kanbanBoard').addEventListener('click', e => {
+    const mv  = e.target.closest('.btn-move');
+    const cc  = e.target.closest('.card-open');
+    const crd = e.target.closest('.vehicle-card');
+    const tog = e.target.closest('.toggle-col');
+    if (mv) {
+      e.stopPropagation();
+      moverStatus(mv.dataset.id, mv.dataset.ns);
+    } else if (cc && crd) {
+      abrirDetalhes(crd.dataset.id);
+    } else if (tog) {
+      const s   = tog.dataset.s;
+      const lst = document.querySelector(`.vehicle-list[data-s="${s}"]`);
+      lst.classList.toggle('collapsed');
+      tog.querySelector('i').classList.toggle('rotate-180');
+      const saved = JSON.parse(localStorage.getItem('eq_collapsed')||'{}');
+      saved[s] = lst.classList.contains('collapsed');
+      localStorage.setItem('eq_collapsed', JSON.stringify(saved));
+    }
+  });
+
+  // Busca coluna Entregue
+  document.getElementById('kanbanBoard').addEventListener('input', e => {
+    if (e.target.matches('.col-search')) renderEntregue();
+  });
+
+  // Busca global desktop + mobile
+  document.getElementById('globalSearch').addEventListener('input', e => buscar(e.target.value,'globalSearchRes'));
+  document.getElementById('mobileSearch')?.addEventListener('input', e => buscar(e.target.value,'mobileSearchRes'));
+  ['globalSearchRes','mobileSearchRes'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', e => {
+      const item = e.target.closest('.search-result-item');
+      if (item) { abrirDetalhes(item.dataset.id); document.getElementById(id).classList.add('hidden'); }
+    });
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-container')) {
+      document.getElementById('globalSearchRes')?.classList.add('hidden');
+      document.getElementById('mobileSearchRes')?.classList.add('hidden');
+    }
+  });
+
+  // Fechar modal detalhes
+  document.getElementById('btnCloseDetails').addEventListener('click', () => fecharDetalhes());
+  document.getElementById('detailsModal').addEventListener('click', e => {
+    if (e.target.id === 'detailsModal') fecharDetalhes();
+  });
+
+  // Galeria: lightbox + delete
+  document.getElementById('thumbnailGrid').addEventListener('click', e => {
+    const th  = e.target.closest('.thumb-item');
+    const del = e.target.closest('.delete-media-btn');
+    if (del) {
+      e.stopPropagation();
+      document.getElementById('confDelMediaOk').dataset.id  = del.dataset.id;
+      document.getElementById('confDelMediaOk').dataset.idx = del.dataset.idx;
+      showModal('confDelMedia');
+    } else if (th) {
+      openLB(parseInt(th.dataset.idx));
+    }
+  });
+
+  // Timeline: delete log
+  document.getElementById('timelineContainer').addEventListener('click', e => {
+    const del = e.target.closest('.delete-log-btn');
+    if (del) {
+      document.getElementById('confDelLogOk').dataset.id  = del.dataset.id;
+      document.getElementById('confDelLogOk').dataset.idx = del.dataset.idx;
+      showModal('confDelLog');
+    }
+  });
+
+  // Confirm delete log
+  document.getElementById('confDelLogOk').addEventListener('click', async () => {
+    const { id, idx } = document.getElementById('confDelLogOk').dataset;
+    const os = allOS[id]; if (!os) return;
+    const tl = [...(os.timeline || [])];
+    tl[parseInt(idx)] = {
+      dt:   new Date().toISOString(),
+      user: J.nome,
+      acao: `ATT EXCLUÍDA POR: ${J.nome}`,
+      tipo: 'log'
+    };
+    await db.collection('ordens_servico').doc(id).update({ timeline:tl, updatedAt:new Date().toISOString() });
+    notify('Registro excluído do histórico','success');
+    hideModal('confDelLog');
+  });
+  document.getElementById('confDelLogCancel').addEventListener('click', () => hideModal('confDelLog'));
+
+  // Confirm delete mídia
+  document.getElementById('confDelMediaOk').addEventListener('click', async () => {
+    const { id, idx } = document.getElementById('confDelMediaOk').dataset;
+    const os  = allOS[id]; if (!os) return;
+    const raw = os.media || os.midia || [];
+    const arr = [...(Array.isArray(raw) ? raw : Object.values(raw))];
+    arr.splice(parseInt(idx), 1);
+    const field = Array.isArray(os.media) ? 'media' : 'midia';
+    await db.collection('ordens_servico').doc(id).update({ [field]:arr, updatedAt:new Date().toISOString() });
+    notify('Mídia excluída','success');
+    hideModal('confDelMedia');
+  });
+  document.getElementById('confDelMediaCancel').addEventListener('click', () => hideModal('confDelMedia'));
+
+  // Upload câmera / galeria
+  document.getElementById('btnCamera').addEventListener('click', () => {
+    const i = document.getElementById('mediaInput');
+    i.setAttribute('accept','image/*'); i.setAttribute('capture','camera');
+    i.multiple = true; i.value = null; i.click();
+  });
+  document.getElementById('btnGaleria').addEventListener('click', () => {
+    const i = document.getElementById('mediaInput');
+    i.setAttribute('accept','image/*,video/*,application/pdf'); i.removeAttribute('capture');
+    i.multiple = true; i.value = null; i.click();
+  });
+  document.getElementById('mediaInput').addEventListener('change', e => {
+    if (e.target.files.length) filesToUp.push(...e.target.files);
+    document.getElementById('fileLabel').textContent = filesToUp.length ? `${filesToUp.length} arquivo(s) na fila` : '';
+  });
+
+  // Submit do log
+  document.getElementById('logForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true; btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Salvando...';
+    const osId = document.getElementById('logOsId').value;
+    const desc = document.getElementById('logDescricao').value.trim();
+    const pcs  = document.getElementById('logPecas').value.trim();
+    const val  = document.getElementById('logValor').value;
+    const os   = allOS[osId]; if (!os) return;
+    try {
+      // Uploads pendentes
+      let media = Array.isArray(os.media) ? [...os.media] : Object.values(os.media||os.midia||{});
+      if (filesToUp.length) {
+        notify('Enviando mídia...','info');
+        const ups = await Promise.all(filesToUp.map(f => uploadFile(f)));
+        media.push(...ups);
+      }
+      // Monta entry da timeline
+      const entry = { dt:new Date().toISOString(), user:J.nome, acao:desc, tipo:val?'value':'log' };
+      if (pcs) entry.pecas = pcs;
+      if (val) entry.valor = val;
+      const tl = [...(os.timeline||[])];
+      tl.push(entry);
+      const field = Array.isArray(os.media) ? 'media' : 'midia';
+      await db.collection('ordens_servico').doc(osId).update({ timeline:tl, [field]:media, updatedAt:new Date().toISOString() });
+      notify('Registro adicionado!','success');
+      e.target.reset(); filesToUp = [];
+      document.getElementById('fileLabel').textContent = '';
+      document.getElementById('postLogActions').classList.remove('hidden');
+    } catch(err) { notify('Erro: '+err.message,'error'); }
+    finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bx bx-message-square-add"></i> Adicionar ao Histórico';
+    }
+  });
+
+  // Pós-log: mover status
+  document.getElementById('btnMoveNext').addEventListener('click', () => {
+    const osId = document.getElementById('logOsId').value;
+    const os   = allOS[osId]; if (!os) return;
+    const next = STATUS_LIST[STATUS_LIST.indexOf(os.status)+1];
+    if (next) { moverStatus(osId,next); fecharDetalhes(); }
+  });
+  document.getElementById('btnMovePrev').addEventListener('click', () => {
+    const osId = document.getElementById('logOsId').value;
+    const os   = allOS[osId]; if (!os) return;
+    const prev = STATUS_LIST[STATUS_LIST.indexOf(os.status)-1];
+    if (prev) { moverStatus(osId,prev); fecharDetalhes(); }
+  });
+  document.getElementById('btnStay').addEventListener('click', () => {
+    document.getElementById('postLogActions').classList.add('hidden');
+  });
+
+  // Atualizar KM
+  document.getElementById('kmForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const osId = document.getElementById('logOsId').value;
+    const km   = parseInt(document.getElementById('kmInput').value);
+    if (!km||km<=0) return;
+    const os = allOS[osId]; if (!os) return;
+    const tl = [...(os.timeline||[])];
+    tl.push({ dt:new Date().toISOString(), user:J.nome, acao:`KM atualizado para ${new Intl.NumberFormat('pt-BR').format(km)} km.`, tipo:'log' });
+    await db.collection('ordens_servico').doc(osId).update({ km, timeline:tl, updatedAt:new Date().toISOString() });
+    document.getElementById('kmInput').value = '';
+    notify('KM atualizado!','success');
+  });
+
+  // Enviar WhatsApp (dentro da ficha OS)
+  document.getElementById('btnEnviarWppOS').addEventListener('click', () => {
+    const osId = document.getElementById('logOsId').value;
+    const os   = allOS[osId]; if (!os) return;
+    enviarWpp(document.getElementById('msgTexto').value, os.telefone);
+  });
+
+  // Exportar OS
+  document.getElementById('btnExportarOS').addEventListener('click', () => {
+    exportarOS(document.getElementById('logOsId').value);
+  });
+
+  // Excluir OS
+  document.getElementById('deleteOsBtn').addEventListener('click', () => {
+    const osId = document.getElementById('logOsId').value;
+    const os   = allOS[osId]; if (!os) return;
+    document.getElementById('confDelOSTxt').innerHTML = `Excluir O.S. da placa <strong>${os.placa}</strong>? Esta ação não pode ser desfeita.`;
+    document.getElementById('confDelOSOk').dataset.id = osId;
+    showModal('confDelOS');
+  });
+  document.getElementById('confDelOSOk').addEventListener('click', async () => {
+    const osId = document.getElementById('confDelOSOk').dataset.id;
+    const os   = allOS[osId]; if (!os) return;
+    await db.collection('ordens_servico').doc(osId).delete();
+    fecharDetalhes();
+    hideModal('confDelOS');
+    notify(`O.S. ${os.placa} excluída.`,'success');
+  });
+  document.getElementById('confDelOSCancel').addEventListener('click', () => hideModal('confDelOS'));
+
+  // Nova OS
+  document.getElementById('btnNovaOS').addEventListener('click', () => {
+    document.getElementById('osId').value = '';
+    document.getElementById('osForm').reset();
+    document.getElementById('osTitulo').textContent = 'Nova Ordem de Serviço';
+    showModal('osModal');
+  });
+  document.getElementById('cancelOS').addEventListener('click', () => hideModal('osModal'));
+  document.getElementById('osForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const prio = document.querySelector('input[name="osPrioridade"]:checked').value;
+    const data = {
+      tenantId:J.tid, placa:document.getElementById('osPlaca').value.toUpperCase(),
+      modelo:document.getElementById('osModelo').value, cliente:document.getElementById('osCliente').value,
+      telefone:document.getElementById('osTelefone').value, km:parseInt(document.getElementById('osKm').value)||0,
+      observacoes:document.getElementById('osObservacoes').value, priority:prio,
+      status:'Aguardando-Mecanico', responsible:J.nome, mecId:J.fid,
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), timeline:[], media:[]
+    };
+    const id = document.getElementById('osId').value;
+    if (id) { const {timeline,media,...up}=data; await db.collection('ordens_servico').doc(id).update(up); }
+    else await db.collection('ordens_servico').add(data);
+    hideModal('osModal');
+    notify('O.S. salva!','success');
+  });
+
+  // ══ MODAL MENSAGEM AO CLIENTE (standalone) ══
+  document.getElementById('btnMsgCliente').addEventListener('click', () => {
+    const sel = document.getElementById('msgOsSelect');
+    const ativas = Object.values(allOS).filter(o => o.status !== 'Entregue')
+      .sort((a,b) => (b.updatedAt||'') > (a.updatedAt||'') ? 1 : -1);
+    sel.innerHTML = '<option value="">Selecione uma O.S....</option>' +
+      ativas.map(o => `<option value="${o.id}">${o.placa} — ${o.modelo} (${o.cliente||'?'})</option>`).join('');
+    document.getElementById('msgTemplatesModal').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Selecione uma O.S. acima</p>';
+    document.getElementById('msgPreview').value = '';
+    showModal('msgModal');
+  });
+
+  document.getElementById('msgOsSelect').addEventListener('change', function() {
+    const os = allOS[this.value]; if (!os) return;
+    const tmpls = getTemplates(os);
+    window._osModal     = os;
+    window._tmplsModal  = tmpls;
+    const cont = document.getElementById('msgTemplatesModal');
+    cont.innerHTML = tmpls.map((t,i) => `
+      <button class="tmpl-btn${i===0?' sel':''}" data-mi="${i}">
+        <span class="mr-1.5">${t.icon}</span>${t.label}
+      </button>`).join('');
+    document.getElementById('msgPreview').value = tmpls[0].msg;
+    cont.querySelectorAll('.tmpl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        cont.querySelectorAll('.tmpl-btn').forEach(b => b.classList.remove('sel'));
+        btn.classList.add('sel');
+        document.getElementById('msgPreview').value = window._tmplsModal[parseInt(btn.dataset.mi)].msg;
+      });
+    });
+  });
+
+  document.getElementById('btnEnviarWppModal').addEventListener('click', () => {
+    const os = window._osModal; if (!os) { notify('Selecione uma O.S.','warn'); return; }
+    enviarWpp(document.getElementById('msgPreview').value, os.telefone);
+  });
+  document.getElementById('closeMsgModal').addEventListener('click', () => hideModal('msgModal'));
+
+  // Lightbox
+  document.getElementById('lbPrev').addEventListener('click', () => { if(lbIdx>0) openLB(lbIdx-1); });
+  document.getElementById('lbNext').addEventListener('click', () => { if(lbIdx<lbMedia.length-1) openLB(lbIdx+1); });
+  ['lbClose','lbBg'].forEach(id => document.getElementById(id)?.addEventListener('click', () => {
+    const lb = document.getElementById('lightbox'); lb.classList.add('hidden'); lb.classList.remove('flex');
+  }));
+  document.getElementById('lbCopy').addEventListener('click', () => {
+    const m = lbMedia[lbIdx];
+    if (m) navigator.clipboard.writeText(m.url||m.secure_url||'').then(() => notify('URL copiada!'));
+  });
+}
+
+/* ─────────────────────────────────────────
+   HELPERS MODAIS
+───────────────────────────────────────── */
+function showModal(id) {
+  const m = document.getElementById(id); if (!m) return;
+  m.classList.remove('hidden'); m.classList.add('flex');
+}
+function hideModal(id) {
+  const m = document.getElementById(id); if (!m) return;
+  m.classList.add('hidden'); m.classList.remove('flex');
+}
+function fecharDetalhes() {
+  hideModal('detailsModal');
 }
 </script>
 </body>
