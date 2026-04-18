@@ -9,6 +9,8 @@
  * atendente   — recepção (jarvis.html) — OS + clientes + agenda
  * mecanico    — técnico (equipe.html) — kanban + logs + mídia
  * cliente     — portal do cliente (cliente.html)
+ *
+ * Powered by thIAguinho Soluções Digitais
  */
 'use strict';
 
@@ -245,10 +247,10 @@ function _escutarNotificacoes() {
 function _escutarChatEquipe() {
   J.db.collection('chat_equipe').where('tenantId', '==', J.tid).onSnapshot(snap => {
     J.chatEquipe = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(a.ts||0)-(b.ts||0));
-    
+
     // Render para Equipe (equipe.html)
     window.renderChatEquipe && renderChatEquipe();
-    
+
     // Render para Admin (jarvis.html)
     window.renderChatEquipeAdmin && renderChatEquipeAdmin();
     if (J.chatAtivoEquipe && window.renderChatMsgsEquipeAdmin) renderChatMsgsEquipeAdmin(J.chatAtivoEquipe);
@@ -256,7 +258,7 @@ function _escutarChatEquipe() {
     // Badges
     const nEquipe = J.chatEquipe.filter(m => m.sender==='admin' && !m.lidaEquipe && m.para===J.fid).length;
     setBadge('chatTabBadge', nEquipe);
-    
+
     const nAdmin = J.chatEquipe.filter(m => m.sender==='equipe' && !m.lidaAdmin).length;
     setBadge('chatEquipeBadge', nAdmin);
   });
@@ -466,120 +468,363 @@ function _hexToRGB(hex) {
   return `${parseInt(c.substring(0,2),16)},${parseInt(c.substring(2,4),16)},${parseInt(c.substring(4,6),16)}`;
 }
 
-// ── MOTOR DE MÍDIA DO CHAT (ÁUDIO E ARQUIVOS) ─────────────────
-let _mediaRecorder;
-let _audioChunks = [];
+// ═════════════════════════════════════════════════════════════
+// MOTOR DE MÍDIA DO CHAT (ÁUDIO, FOTOS E ANEXOS)
+// Correções 1, 2, 3 e 4 — Powered by thIAguinho Soluções Digitais
+// ═════════════════════════════════════════════════════════════
 
-window.togglePTT = async function() {
-  const btn = document.getElementById('btnPTT');
+// Escape seguro contra XSS ao renderizar texto livre no chat
+function _escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+function _escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/["<>]/g, c => ({
+    '"':'&quot;', '<':'&lt;', '>':'&gt;'
+  }[c]));
+}
+
+// ── PARSING DE MÍDIA ROBUSTO (CORREÇÃO #1) ────────────────
+// Tolera espaços invisíveis (BOM, zero-width, NBSP), quebras de linha
+// e capitalização inconsistente das tags [IMAGEM] / [AUDIO] / [ARQUIVO]
+// que teclados mobile (Gboard/iOS) eventualmente inserem.
+window.formatarMidiaChat = function(texto) {
+  if (texto == null) return '';
+
+  // 1) Normalização: remove caracteres invisíveis que quebram .startsWith()
+  const limpo = String(texto)
+    .replace(/\uFEFF/g, '')   // BOM
+    .replace(/\u200B/g, '')   // zero-width space
+    .replace(/\u200C/g, '')   // zero-width non-joiner
+    .replace(/\u200D/g, '')   // zero-width joiner
+    .replace(/\u00A0/g, ' ')  // non-breaking space → espaço comum
+    .trim();
+
+  if (!limpo) return '';
+
+  // 2) Regex robusta: aceita [TAG] seguida de espaços/quebras antes da URL,
+  // case-insensitive, com \s* em volta da tag para tolerar ruído.
+  const match = limpo.match(/^\s*\[\s*(AUDIO|IMAGEM|ARQUIVO)\s*\]\s*([\s\S]+)$/i);
+
+  if (!match) {
+    // Não é mídia: renderiza como texto seguro preservando quebras
+    return _escapeHtml(limpo).replace(/\n/g, '<br>');
+  }
+
+  const tipo = match[1].toUpperCase();
+  // Pega a primeira "palavra" depois da tag (descarta qualquer ruído após a URL)
+  const bruto = match[2].trim();
+  const url = bruto.split(/\s+/)[0];
+
+  // 3) Valida que é uma URL HTTPS(S) real — caso contrário devolve como texto
+  if (!/^https?:\/\/\S+/i.test(url)) {
+    return _escapeHtml(limpo).replace(/\n/g, '<br>');
+  }
+
+  const urlAttr = _escapeAttr(url);
+
+  if (tipo === 'AUDIO') {
+    return `<audio src="${urlAttr}" controls preload="metadata" style="height:34px; max-width:220px; outline:none; display:block;"></audio>`;
+  }
+  if (tipo === 'IMAGEM') {
+    return `<img src="${urlAttr}" loading="lazy" alt="imagem" style="max-width:220px; max-height:220px; border-radius:6px; cursor:zoom-in; display:block;" onclick="window.open('${urlAttr}','_blank','noopener')">`;
+  }
+  if (tipo === 'ARQUIVO') {
+    return `<a href="${urlAttr}" target="_blank" rel="noopener" style="color:var(--brand);text-decoration:underline;display:inline-block;padding:4px 0">📎 Ver Anexo</a>`;
+  }
+
+  // Fallback defensivo
+  return _escapeHtml(limpo).replace(/\n/g, '<br>');
+};
+
+// ── ROTEADOR DE MÍDIA PARA O CHAT CORRETO ─────────────────
+// Após gravar áudio ou enviar arquivo, decide em QUAL chat
+// despachar a mídia, baseado na URL atual e no chat ativo.
+function _despacharMidiaChat(payload) {
+  const path = (window.location.pathname || '').toLowerCase();
+
+  // CLIENTE (portal do cliente)
+  if (path.includes('cliente.html')) {
+    const inp = document.getElementById('chatInputCliente') || document.getElementById('chatInput');
+    if (inp) {
+      inp.value = payload;
+      if (typeof window.enviarChatCliente === 'function') return window.enviarChatCliente();
+      if (typeof window.enviarChat === 'function')        return window.enviarChat();
+    }
+    return;
+  }
+
+  // EQUIPE (mecânico falando com o admin)
+  if (path.includes('equipe.html')) {
+    const inp = document.getElementById('chatInputEquipe') || document.getElementById('chatInput');
+    if (inp) {
+      inp.value = payload;
+      if (typeof window.enviarMsgEquipe === 'function') return window.enviarMsgEquipe();
+    }
+    return;
+  }
+
+  // JARVIS (admin): decide pelo chat ativo
+  // Se há um chat com membro da equipe aberto, vai para o chat_equipe.
+  if (J.chatAtivoEquipe || J.chatEquipeAtivo) {
+    const inp = document.getElementById('chatInputEquipeAdmin');
+    if (inp) {
+      inp.value = payload;
+      if (typeof window.enviarMsgEquipeAdmin === 'function') return window.enviarMsgEquipeAdmin();
+    }
+    return;
+  }
+  // Caso contrário, CRM com o cliente.
+  if (J.chatAtivo) {
+    const inp = document.getElementById('chatInput');
+    if (inp) {
+      inp.value = payload;
+      if (typeof window.enviarChat === 'function') return window.enviarChat();
+    }
+    return;
+  }
+
+  // Último fallback: se houver qualquer input genérico
+  const fallback = document.getElementById('chatInput');
+  if (fallback) {
+    fallback.value = payload;
+    if (typeof window.enviarChat === 'function') window.enviarChat();
+  }
+}
+
+// ── GRAVAÇÃO DE ÁUDIO CLICK-TO-RECORD (CORREÇÃO #3) ───────
+// Clique 1× → inicia gravação (botão fica vermelho com ⏹)
+// Clique 2× → para, sobe ao Cloudinary e envia automaticamente
+// Libera o microfone IMEDIATAMENTE ao parar (evita LED preso no mobile)
+window._pttState = { recorder: null, stream: null, chunks: [], btnId: null, mime: '' };
+
+window.togglePTT = async function(btnId) {
+  btnId = btnId || 'btnPTT';
+  const btn = document.getElementById(btnId);
   if (!btn) return;
 
-  if (_mediaRecorder && _mediaRecorder.state === 'recording') {
-    _mediaRecorder.stop();
-    btn.style.color = '';
-    btn.style.background = '';
-    btn.innerHTML = '🎤';
+  const st = window._pttState;
+
+  // ── Se já está gravando, PARA e envia ─────────────────
+  if (st.recorder && st.recorder.state === 'recording') {
+    try { st.recorder.stop(); } catch (e) { /* ignore */ }
+    return;
+  }
+
+  // ── Checagem de suporte ───────────────────────────────
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof window.MediaRecorder === 'undefined') {
+    window.toastErr && toastErr('Este navegador não suporta gravação de áudio.');
     return;
   }
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    _mediaRecorder = new MediaRecorder(stream);
-    _audioChunks = [];
 
-    _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _audioChunks.push(e.data); };
-    _mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(_audioChunks, { type: 'audio/webm' });
-      const fd = new FormData();
-      fd.append('file', audioBlob);
-      fd.append('upload_preset', J.cloudPreset);
-      
-      btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;border-color:var(--brand) transparent transparent transparent"></span>';
-      
+    // Escolhe um mimetype suportado (Safari iOS prefere mp4)
+    let mime = '';
+    if (window.MediaRecorder && typeof MediaRecorder.isTypeSupported === 'function') {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))      mime = 'audio/webm;codecs=opus';
+      else if (MediaRecorder.isTypeSupported('audio/webm'))             mime = 'audio/webm';
+      else if (MediaRecorder.isTypeSupported('audio/mp4'))              mime = 'audio/mp4';
+      else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus'))  mime = 'audio/ogg;codecs=opus';
+    }
+    const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+
+    st.recorder = recorder;
+    st.stream   = stream;
+    st.chunks   = [];
+    st.btnId    = btnId;
+    st.mime     = mime || 'audio/webm';
+
+    recorder.ondataavailable = ev => {
+      if (ev.data && ev.data.size > 0) st.chunks.push(ev.data);
+    };
+
+    recorder.onerror = ev => {
+      window.toastErr && toastErr('Erro na gravação: ' + (ev?.error?.message || 'desconhecido'));
+      _pttLimpar();
+    };
+
+    recorder.onstop = async () => {
+      // 1) Libera o microfone IMEDIATAMENTE (crítico no mobile)
+      if (st.stream) {
+        try { st.stream.getTracks().forEach(t => { try { t.stop(); } catch(e){} }); } catch(e) {}
+        st.stream = null;
+      }
+
+      const btnEl = document.getElementById(st.btnId || btnId);
+      if (btnEl) {
+        btnEl.style.color = '';
+        btnEl.style.background = '';
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;border-style:solid;border-color:var(--brand) transparent transparent transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>';
+      }
+
       try {
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, {method:'POST',body:fd});
-        const data = await res.json();
-        
-        if (data.secure_url) {
-          const isEquipe = window.location.pathname.includes('equipe.html');
-          const inputEl = document.getElementById(isEquipe ? 'chatInputEquipe' : 'chatInput');
-          
-          if (inputEl) {
-            inputEl.value = `[AUDIO]${data.secure_url}`;
-            if (isEquipe && window.enviarMsgEquipe) window.enviarMsgEquipe();
-            else if (window.enviarChat) window.enviarChat();
-          }
+        if (!st.chunks.length) {
+          window.toastErr && toastErr('Gravação vazia — fale algo antes de parar.');
+          _pttLimpar();
+          return;
         }
+
+        const blob = new Blob(st.chunks, { type: st.mime || 'audio/webm' });
+        if (blob.size < 500) {
+          window.toastErr && toastErr('Áudio muito curto.');
+          _pttLimpar();
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append('file', blob, 'ptt.' + (st.mime.includes('mp4') ? 'm4a' : 'webm'));
+        fd.append('upload_preset', J.cloudPreset);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, {
+          method: 'POST', body: fd
+        });
+        const data = await res.json();
+
+        if (!data.secure_url) {
+          throw new Error(data?.error?.message || 'Falha no upload do áudio.');
+        }
+
+        _despacharMidiaChat('[AUDIO]' + data.secure_url);
+
       } catch (e) {
-        window.toastErr && toastErr('Erro ao enviar áudio: ' + e.message);
+        window.toastErr && toastErr('Erro ao enviar áudio: ' + (e.message || e));
       } finally {
-        btn.innerHTML = '🎤';
-        stream.getTracks().forEach(t => t.stop());
+        _pttLimpar();
       }
     };
 
-    _mediaRecorder.start();
-    btn.style.color = 'white';
-    btn.style.background = 'var(--danger)';
-    btn.innerHTML = '⏹️';
-    window.toastOk && toastOk('Gravando... Toque no ⏹️ para enviar.');
+    recorder.start();
+    btn.style.color = '#fff';
+    btn.style.background = 'var(--danger, #dc2626)';
+    btn.innerHTML = '⏹';
+    btn.title = 'Clique para parar e enviar';
+    btn.setAttribute('aria-pressed', 'true');
+    window.toastOk && toastOk('🔴 Gravando... Clique ⏹ para enviar.');
 
   } catch (err) {
-    window.toastErr && toastErr('⚠ Permissão de microfone negada.');
+    window.toastErr && toastErr('⚠ Permissão de microfone negada ou indisponível.');
+    _pttLimpar();
   }
 };
 
+function _pttLimpar() {
+  const st = window._pttState;
+  if (st.stream) {
+    try { st.stream.getTracks().forEach(t => { try { t.stop(); } catch(e){} }); } catch(e){}
+  }
+  const btnEl = document.getElementById(st.btnId || 'btnPTT');
+  if (btnEl) {
+    btnEl.style.color = '';
+    btnEl.style.background = '';
+    btnEl.innerHTML = '🎤';
+    btnEl.disabled = false;
+    btnEl.title = 'Gravar áudio';
+    btnEl.removeAttribute('aria-pressed');
+  }
+  st.recorder = null;
+  st.stream   = null;
+  st.chunks   = [];
+  st.btnId    = null;
+  st.mime     = '';
+}
+
+// ── ENVIO DE ARQUIVO ÚNICO PELO CHAT (anexo/foto) ─────────
+// Usado pelos clipes de anexo de jarvis.html, equipe.html e cliente.html.
+// Após o upload, decide automaticamente em qual chat despachar via _despacharMidiaChat.
 window.enviarArquivoChat = async function(input) {
+  if (!input || !input.files || !input.files.length) return;
   const file = input.files[0];
   if (!file) return;
-  
-  const isEquipe = window.location.pathname.includes('equipe.html');
-  const inputEl = document.getElementById(isEquipe ? 'chatInputEquipe' : 'chatInput');
-  if (!inputEl) return;
 
   window.toastOk && toastOk('Enviando arquivo...');
+
   try {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('upload_preset', J.cloudPreset);
-    
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, {method:'POST',body:fd});
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, {
+      method: 'POST', body: fd
+    });
     const data = await res.json();
-    
-    if (data.secure_url) {
-      const prefixo = data.resource_type === 'image' ? '[IMAGEM]' : '[ARQUIVO]';
-      inputEl.value = `${prefixo}${data.secure_url}`;
-      
-      if (isEquipe && window.enviarMsgEquipe) window.enviarMsgEquipe();
-      else if (window.enviarChat) window.enviarChat();
+
+    if (!data.secure_url) {
+      throw new Error(data?.error?.message || 'Falha no upload.');
     }
-  } catch(e) {
-    window.toastErr && toastErr('Erro no anexo: ' + e.message);
+
+    const isImg = (data.resource_type === 'image') || /^image\//.test(file.type || '');
+    const prefixo = isImg ? '[IMAGEM]' : '[ARQUIVO]';
+    _despacharMidiaChat(prefixo + data.secure_url);
+
+  } catch (e) {
+    window.toastErr && toastErr('Erro no anexo: ' + (e.message || e));
   } finally {
-    input.value = '';
+    // Libera o input para que o mesmo arquivo possa ser reanexado no futuro
+    try { input.value = ''; } catch(e) {}
   }
 };
 
-window.formatarMidiaChat = function(texto) {
-  if (!texto) return '';
-  if (texto.startsWith('[AUDIO]')) {
-    const url = texto.replace('[AUDIO]', '');
-    return `<audio src="${url}" controls style="height:34px; max-width:200px; outline:none;"></audio>`;
+// ── BATCH UPLOAD PARA O.S. (CORREÇÃO #4) ──────────────────
+// Recebe uma FileList/array de File, envia em lote ao Cloudinary,
+// devolve um array [{url, type, publicId}]. Aceita callback de progresso.
+// O chamador (os.js / jarvis.html) é quem grava as URLs no documento da O.S.
+// em UMA ÚNICA update do Firestore.
+window.uploadBatchOS = async function(files, onProgress) {
+  if (!files || !files.length) return [];
+  const arr = Array.from(files);
+  const total = arr.length;
+  const resultados = [];
+
+  for (let i = 0; i < total; i++) {
+    const f = arr[i];
+    if (!f) continue;
+
+    const fd = new FormData();
+    fd.append('file', f);
+    fd.append('upload_preset', J.cloudPreset);
+
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName}/auto/upload`, {
+        method: 'POST', body: fd
+      });
+      const data = await res.json();
+
+      if (data && data.secure_url) {
+        resultados.push({
+          url: data.secure_url,
+          type: data.resource_type || (f.type?.startsWith('image/') ? 'image' : 'raw'),
+          publicId: data.public_id || null,
+          nome: f.name || '',
+          tamanho: f.size || 0
+        });
+      } else {
+        window.toastErr && toastErr(`Falha no arquivo ${i + 1}/${total}: ${data?.error?.message || 'erro desconhecido'}`);
+      }
+    } catch (e) {
+      window.toastErr && toastErr(`Falha no arquivo ${i + 1}/${total}: ${e.message || e}`);
+    }
+
+    if (typeof onProgress === 'function') {
+      try { onProgress(i + 1, total); } catch (e) {}
+    }
   }
-  if (texto.startsWith('[IMAGEM]')) {
-    const url = texto.replace('[IMAGEM]', '');
-    return `<img src="${url}" style="max-width:200px; border-radius:4px; cursor:zoom-in" onclick="window.open('${url}')">`;
-  }
-  if (texto.startsWith('[ARQUIVO]')) {
-    const url = texto.replace('[ARQUIVO]', '');
-    return `<a href="${url}" target="_blank" style="color:var(--brand);text-decoration:underline">📎 Ver Anexo</a>`;
-  }
-  return texto;
+
+  return resultados;
 };
 
-// ============================================================
-// CHAT CRM B2C E CHAT EQUIPE ADMIN
-// ============================================================
+// Helper exposto para os handlers inline dos HTMLs: retorna o ID do chat ativo
+// (usado pelas funções de render quando precisam abrir o próprio chat).
+window._chatAtivoId = function() {
+  return J.chatAtivo || J.chatAtivoEquipe || J.chatEquipeAtivo || null;
+};
+
+// ═════════════════════════════════════════════════════════════
+// CHAT CRM B2C (admin ↔ cliente) E CHAT EQUIPE ADMIN
+// ═════════════════════════════════════════════════════════════
 window.renderChatLista = function() {
   const el = document.getElementById('chatLista'); if(!el) return;
   el.innerHTML = J.clientes.map(c=>{
@@ -595,7 +840,7 @@ window.renderChatLista = function() {
 
 window.abrirChat = function(cid, nome) {
   J.chatAtivo = cid;
-  _st('chatHead', 'ATENDIMENTO: ' + nome.toUpperCase());
+  _st('chatHead', 'ATENDIMENTO: ' + (nome||'').toUpperCase());
   const cf = document.getElementById('chatFoot'); if(cf) cf.style.display = 'flex';
   window.renderChatMsgs(cid);
   J.mensagens.filter(m => m.clienteId === cid && m.sender === 'cliente' && !m.lidaAdmin).forEach(m => {
@@ -614,12 +859,18 @@ window.renderChatMsgs = function(cid) {
 };
 
 window.enviarChat = async function(txt) {
-  const msg = txt || _v('chatInput'); if(!msg || !J.chatAtivo) return;
-  await J.db.collection('mensagens').add({tenantId: J.tid, clienteId: J.chatAtivo, sender: 'admin', msg, lidaAdmin: true, lidaCliente: false, ts: Date.now()});
+  const msg = (txt || _v('chatInput') || '').trim();
+  if(!msg || !J.chatAtivo) return;
+  await J.db.collection('mensagens').add({
+    tenantId: J.tid, clienteId: J.chatAtivo, sender: 'admin',
+    msg, lidaAdmin: true, lidaCliente: false, ts: Date.now()
+  });
   _sv('chatInput', '');
 };
 
-document.getElementById('chatInput')?.addEventListener('keydown', e => { if(e.key === 'Enter') window.enviarChat(); });
+document.getElementById('chatInput')?.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.enviarChat(); }
+});
 
 window.renderChatEquipeAdmin = window.renderChatListaEquipe = function() {
   const el = document.getElementById('chatListaEquipe'); if(!el) return;
@@ -637,7 +888,7 @@ window.renderChatEquipeAdmin = window.renderChatListaEquipe = function() {
 window.abrirChatEquipe = function(fid, nome) {
   J.chatEquipeAtivo = fid;
   J.chatAtivoEquipe = fid;
-  _st('chatHeadEquipe', 'CHAT EQUIPE: ' + nome.toUpperCase());
+  _st('chatHeadEquipe', 'CHAT EQUIPE: ' + (nome||'').toUpperCase());
   const cf = document.getElementById('chatFootEquipe'); if(cf) cf.style.display = 'flex';
   window.renderChatMsgsEquipeAdmin(fid);
   J.chatEquipe.filter(m => m.de === fid && m.sender === 'equipe' && !m.lidaAdmin).forEach(m => {
@@ -657,10 +908,18 @@ window.renderChatMsgsEquipeAdmin = function(fid) {
 };
 
 window.enviarMsgEquipeAdmin = async function(txt) {
-  const msg = txt || _v('chatInputEquipeAdmin'); if (!msg || (!J.chatEquipeAtivo && !J.chatAtivoEquipe)) return;
+  const msg = (txt || _v('chatInputEquipeAdmin') || '').trim();
+  if (!msg || (!J.chatEquipeAtivo && !J.chatAtivoEquipe)) return;
   const fid = J.chatEquipeAtivo || J.chatAtivoEquipe;
-  await J.db.collection('chat_equipe').add({tenantId: J.tid, de: 'admin', para: fid, sender: 'admin', msg, lidaAdmin: true, lidaEquipe: false, ts: Date.now()});
+  await J.db.collection('chat_equipe').add({
+    tenantId: J.tid, de: 'admin', para: fid, sender: 'admin',
+    msg, lidaAdmin: true, lidaEquipe: false, ts: Date.now()
+  });
   _sv('chatInputEquipeAdmin', '');
 };
 
-document.getElementById('chatInputEquipeAdmin')?.addEventListener('keydown', e => { if(e.key === 'Enter') window.enviarMsgEquipeAdmin(); });
+document.getElementById('chatInputEquipeAdmin')?.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.enviarMsgEquipeAdmin(); }
+});
+
+/* Powered by thIAguinho Soluções Digitais */
