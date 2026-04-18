@@ -261,6 +261,38 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   .grid-pecas .peca-sel { grid-column: span 2; }
   .cabecalho-pecas { display: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   THIAGUINHO — AJUSTES p/ CORREÇÕES #1, #2, #3, #4
+   Spinner de loading, preview do batch upload, usabilidade mobile.
+   Powered by thIAguinho Soluções Digitais
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes jspin { to { transform: rotate(360deg); } }
+.j-spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--cyan);border-right-color:transparent;border-radius:50%;animation:jspin 0.8s linear infinite;vertical-align:middle;}
+
+/* Preview local do batch upload na aba Provas */
+.os-batch-preview{background:rgba(0,212,255,0.04);border:1px dashed var(--border2);border-radius:3px;padding:10px;margin-bottom:12px;}
+.os-batch-preview-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;}
+.os-batch-preview-title{font-family:var(--fm);font-size:0.62rem;color:var(--cyan);letter-spacing:1px;}
+.os-batch-preview-progress{font-family:var(--fm);font-size:0.6rem;color:var(--muted);}
+
+/* Mensagens do chat com mídia precisam quebrar texto longo */
+.chat-msg img, .chat-msg audio, .chat-msg video { max-width: 100%; }
+.chat-msg { word-break: break-word; }
+
+/* Botões de ícone do chat (🎤 / 📎) respondendo melhor ao touch */
+.chat-foot .btn-ghost, .chat-foot button[title*="nexar"], .chat-foot button[title*="udio"], #btnPTT, #btnPTTEquipe {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile: evita zoom automático do iOS ao focar no input do chat (size>=16px) */
+@media (max-width: 600px) {
+  #chatInput, #chatEquipeInput { font-size: 16px !important; }
+  .chat-foot { flex-wrap: nowrap; }
+  .chat-foot .j-input { min-width: 0; }
+}
 </style>
 </head>
 <body>
@@ -593,7 +625,10 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           <div class="chat-head" id="chatEquipeHead">Selecione um membro da equipe</div>
           <div class="chat-msgs" id="chatEquipeMsgs"></div>
           <div class="chat-foot" id="chatEquipeFoot" style="display:none; gap:8px; align-items:center;">
-            <input class="j-input" id="chatEquipeInput" placeholder="Mensagem para a equipe..." style="flex:1;">
+            <button class="btn-ghost" id="btnPTTEquipe" title="Gravar Áudio" aria-label="Gravar áudio" style="padding:8px; border-radius:50%;"><svg style="width:18px;height:18px;"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
+            <button class="btn-ghost" onclick="document.getElementById('chatEquipeFile').click()" title="Anexar Arquivo" aria-label="Anexar arquivo" style="padding:8px; border-radius:50%;"><svg style="width:18px;height:18px;"><path fill="currentColor" d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.31 2.69 6 6 6s6-2.69 6-6V6h-1.5z"/></svg></button>
+            <input type="file" id="chatEquipeFile" style="display:none" accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx" onchange="enviarArquivoChatEquipe(this)">
+            <input class="j-input" id="chatEquipeInput" placeholder="Mensagem para a equipe..." style="flex:1;" autocomplete="off">
             <button class="btn-primary" onclick="enviarChatEquipe()">ENVIAR</button>
           </div>
         </div>
@@ -769,10 +804,23 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   <div class="tab-pane" id="tabOS2">
     <div style="background:var(--surf3);border:1px solid var(--border);border-radius:3px;padding:16px;margin-bottom:16px;">
       <div style="font-family:var(--fd);font-weight:700;margin-bottom:12px;color:var(--cyan);">GALERIA DE PROVAS (CLOUDINARY)</div>
-      <div style="display:flex;gap:10px;margin-bottom:14px;">
-        <input type="file" class="j-input" id="osFileInput" accept="image/*,video/*" capture="environment" style="flex:1;">
-        <button class="btn-primary" onclick="window.uploadOsMedia()" id="btnUploadMedia">UPLOAD</button>
+      <!-- CORREÇÃO #4: Input múltiplo + captura de câmera traseira no mobile -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <input type="file" class="j-input" id="osFileInput" accept="image/*,video/*" multiple capture="environment" style="flex:1;min-width:0;" onchange="window.previewOsMediaBatch(this)">
+        <button class="btn-primary" onclick="window.uploadOsMediaBatch()" id="btnUploadMedia" type="button">ENVIAR TODAS</button>
       </div>
+      <!-- Preview local das fotos selecionadas ANTES do upload em lote -->
+      <div id="osMediaPreviewLocal" class="os-batch-preview" style="display:none;">
+        <div class="os-batch-preview-head">
+          <span class="os-batch-preview-title">PRÉVIA — <span id="osMediaPreviewCount">0</span> ARQUIVO(S) SELECIONADO(S)</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="osMediaProgress" class="os-batch-preview-progress" style="display:none;"></span>
+            <button type="button" class="btn-ghost" onclick="window.limparOsMediaPreview()" style="padding:4px 10px;font-size:0.6rem;">✕ LIMPAR</button>
+          </div>
+        </div>
+        <div class="media-grid" id="osMediaPreviewGrid"></div>
+      </div>
+      <!-- Galeria final (fotos já enviadas, persistirão no Firestore ao salvar a O.S.) -->
       <div class="media-grid" id="osMediaGrid"></div>
       <input type="hidden" id="osMediaArray" value="[]">
     </div>
@@ -1275,9 +1323,10 @@ window.renderChatEquipeMsgs = function(fid) {
     const lado = m.sender === 'admin' ? 'admin' : 'cliente';
     const nome = m.sender === 'admin' ? 'Admin' : (J.equipe.find(f=>f.id===m.de)?.nome || 'Equipe');
     const ts = m.ts ? new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const conteudo = window.formatarMidiaChatJ ? window.formatarMidiaChatJ(m.msg) : (m.msg||'').replace(/\n/g,'<br>');
     return `<div class="chat-msg ${lado}">
       <strong style="font-size:0.65rem;color:${lado==='admin'?'var(--cyan)':'var(--muted2)'}">${nome}</strong><br>
-      ${(m.msg||'').replace(/\n/g,'<br>')}
+      ${conteudo}
       <div class="ts">${ts}</div>
     </div>`;
   }).join('') || '<div style="text-align:center;color:var(--muted);padding:30px;font-size:0.75rem;">Sem mensagens ainda</div>';
@@ -1602,22 +1651,7 @@ window.renderChatMsgs = function(cid) {
   $('chatMsgs').innerHTML=msgs.map(m=>{
     const ts = m.ts ? new Date(m.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
     const lado = m.sender==='admin' ? 'admin' : 'cliente';
-    let conteudo = '';
-    const txt = m.msg || '';
-
-    if (txt.startsWith('[IMG]')) {
-      const url = txt.replace('[IMG]','');
-      conteudo = `<img src="${url}" style="max-width:200px;border-radius:4px;cursor:zoom-in;display:block;" onclick="window.open('${url}','_blank')">`;
-    } else if (txt.startsWith('[VID]')) {
-      const url = txt.replace('[VID]','');
-      conteudo = `<video src="${url}" controls style="max-width:220px;border-radius:4px;display:block;"></video>`;
-    } else if (txt.startsWith('[AUD]')) {
-      const url = txt.replace('[AUD]','');
-      conteudo = `<audio src="${url}" controls style="max-width:220px;"></audio>`;
-    } else {
-      conteudo = txt.replace(/\n/g,'<br>');
-    }
-
+    const conteudo = window.formatarMidiaChatJ ? window.formatarMidiaChatJ(m.msg) : (m.msg || '').replace(/\n/g,'<br>');
     return `<div class="chat-msg ${lado}">${conteudo}<div class="ts">${ts}</div></div>`;
   }).join('');
   $('chatMsgs').scrollTop=$('chatMsgs').scrollHeight;
@@ -1629,94 +1663,251 @@ window.enviarChat = async function(txt) {
 }
 document.getElementById('chatInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')window.enviarChat();});
 
-// ── GRAVAÇÃO DE ÁUDIO PTT ──────────────────────────────────
-(function() {
-  let _mediaRec = null;
-  let _chunks = [];
-  let _gravando = false;
+// ═══════════════════════════════════════════════════════════════
+// MOTOR DE MÍDIA DO CHAT — CORREÇÕES #1, #3
+// Powered by thIAguinho Soluções Digitais
+// ═══════════════════════════════════════════════════════════════
 
-  const btnPTT = document.getElementById('btnPTT');
-  if (!btnPTT) return;
+// ── Utilitários de escape seguro contra XSS ──
+function _escHtmlJ(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function _escAttrJ(s){
+  return String(s==null?'':s).replace(/["<>]/g,c=>({'"':'&quot;','<':'&lt;','>':'&gt;'}[c]));
+}
 
-  btnPTT.addEventListener('click', async function() {
-    if (!J.chatAtivo) { window.toast('⚠ Selecione um cliente primeiro', 'warn'); return; }
+// ── CORREÇÃO #1: PARSER DE MÍDIA ROBUSTO BI-CONVENÇÃO ────────
+// Aceita TANTO as tags padrão [IMAGEM]/[AUDIO]/[ARQUIVO] (cliente.html, core.js)
+// QUANTO as tags legadas [IMG]/[VID]/[AUD] que o jarvis.html usava historicamente.
+// Tolera BOM, zero-width-space, NBSP, quebras de linha e case-insensitive.
+window.formatarMidiaChatJ = function(texto){
+  if(texto==null) return '';
+  const limpo = String(texto)
+    .replace(/\uFEFF/g,'')
+    .replace(/\u200B/g,'')
+    .replace(/\u200C/g,'')
+    .replace(/\u200D/g,'')
+    .replace(/\u00A0/g,' ')
+    .trim();
+  if(!limpo) return '';
 
-    if (!_gravando) {
-      // CLIQUE 1 — iniciar gravação
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        _chunks = [];
-        _mediaRec = new MediaRecorder(stream);
-        _mediaRec.ondataavailable = e => { if (e.data.size > 0) _chunks.push(e.data); };
-        _mediaRec.onstop = async () => {
-          stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(_chunks, { type: 'audio/webm' });
-          btnPTT.innerHTML = '<svg style="width:18px;height:18px;"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
-          btnPTT.style.color = '';
-          window.toast('⏳ Enviando áudio...');
-          try {
-            const fd = new FormData();
-            fd.append('file', blob, 'audio.webm');
-            fd.append('upload_preset', J.cloudPreset || 'evolution');
-            const res = await fetch(
-              `https://api.cloudinary.com/v1_1/${J.cloudName || 'dmuvm1o6m'}/auto/upload`,
-              { method: 'POST', body: fd }
-            );
-            const data = await res.json();
-            if (!data.secure_url) throw new Error('URL não retornada');
-            await db.collection('mensagens').add({
-              tenantId: J.tid, clienteId: J.chatAtivo,
-              sender: 'admin', msg: `[AUD]${data.secure_url}`,
-              tipo: 'audio', url: data.secure_url,
-              lidaCliente: false, ts: Date.now()
-            });
-            window.toast('✓ ÁUDIO ENVIADO');
-          } catch(err) {
-            window.toast('✕ ERRO AO ENVIAR ÁUDIO: ' + err.message, 'err');
-          }
-        };
-        _mediaRec.start();
-        _gravando = true;
-        btnPTT.innerHTML = '⏹';
-        btnPTT.style.color = 'var(--danger)';
-        btnPTT.title = 'Parar gravação';
-      } catch(err) {
-        window.toast('⚠ Microfone não permitido: ' + err.message, 'warn');
-      }
-    } else {
-      // CLIQUE 2 — parar gravação e enviar
-      _gravando = false;
-      btnPTT.title = 'Gravar Áudio';
-      if (_mediaRec && _mediaRec.state !== 'inactive') _mediaRec.stop();
+  // Aceita: IMAGEM | IMG | FOTO | AUDIO | AUD | VIDEO | VID | ARQUIVO | DOC
+  const match = limpo.match(/^\s*\[\s*(IMAGEM|IMG|FOTO|AUDIO|AUD|VIDEO|VID|ARQUIVO|DOC)\s*\]\s*([\s\S]+)$/i);
+  if(!match) return _escHtmlJ(limpo).replace(/\n/g,'<br>');
+
+  const tag = match[1].toUpperCase();
+  const url = match[2].trim().split(/\s+/)[0];
+  if(!/^https?:\/\/\S+/i.test(url)) return _escHtmlJ(limpo).replace(/\n/g,'<br>');
+  const u = _escAttrJ(url);
+
+  if(tag==='AUDIO' || tag==='AUD'){
+    return `<audio src="${u}" controls preload="metadata" style="height:34px;max-width:220px;outline:none;display:block;"></audio>`;
+  }
+  if(tag==='VIDEO' || tag==='VID'){
+    return `<video src="${u}" controls preload="metadata" style="max-width:220px;border-radius:4px;display:block;"></video>`;
+  }
+  if(tag==='IMAGEM' || tag==='IMG' || tag==='FOTO'){
+    return `<img src="${u}" loading="lazy" alt="imagem" style="max-width:220px;max-height:220px;border-radius:6px;cursor:zoom-in;display:block;" onclick="window.open('${u}','_blank','noopener')">`;
+  }
+  if(tag==='ARQUIVO' || tag==='DOC'){
+    return `<a href="${u}" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:underline;display:inline-block;padding:4px 0">📎 Ver Anexo</a>`;
+  }
+  return _escHtmlJ(limpo).replace(/\n/g,'<br>');
+};
+
+// ── CORREÇÃO #3: CLICK-TO-RECORD ROBUSTO — DOIS CHATS ────────
+// chatCRM: admin ↔ cliente (collection: mensagens)
+// chatEquipe: admin ↔ mecânico (collection: chat_equipe)
+window._pttStateJ = { recorder:null, stream:null, chunks:[], btnId:null, mime:'', destino:null };
+
+// Conteúdo original do botão PTT (ícone de microfone SVG) — usado ao restaurar
+const _PTT_SVG_DEFAULT = '<svg style="width:18px;height:18px;"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
+
+window.togglePTT = async function(btnId, destino){
+  // destino = 'crm' (chat com cliente) ou 'equipe' (chat com mecânico)
+  btnId = btnId || 'btnPTT';
+  destino = destino || 'crm';
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+
+  // Validação de contexto
+  if(destino === 'crm' && !J.chatAtivo){
+    window.toast('⚠ Selecione um cliente primeiro', 'warn');
+    return;
+  }
+  if(destino === 'equipe' && !J.chatEquipeAtivo){
+    window.toast('⚠ Selecione um membro da equipe primeiro', 'warn');
+    return;
+  }
+
+  // Se já está gravando → PARA e envia
+  if(window._pttStateJ.recorder && window._pttStateJ.recorder.state === 'recording'){
+    try{ window._pttStateJ.recorder.stop(); }catch(e){}
+    return;
+  }
+
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof window.MediaRecorder === 'undefined'){
+    window.toast('Este navegador não suporta gravação de áudio.','err');
+    return;
+  }
+
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    let mime = '';
+    if(typeof MediaRecorder.isTypeSupported === 'function'){
+      if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))     mime = 'audio/webm;codecs=opus';
+      else if(MediaRecorder.isTypeSupported('audio/webm'))            mime = 'audio/webm';
+      else if(MediaRecorder.isTypeSupported('audio/mp4'))             mime = 'audio/mp4';
+      else if(MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mime = 'audio/ogg;codecs=opus';
     }
-  });
+    const recorder = mime ? new MediaRecorder(stream,{mimeType:mime}) : new MediaRecorder(stream);
+    window._pttStateJ = { recorder, stream, chunks:[], btnId, mime: mime||'audio/webm', destino };
+
+    recorder.ondataavailable = e => { if(e.data && e.data.size > 0) window._pttStateJ.chunks.push(e.data); };
+
+    recorder.onerror = ev => {
+      window.toast('Erro na gravação: '+(ev?.error?.message||'desconhecido'),'err');
+      _pttLimparJ();
+    };
+
+    recorder.onstop = async () => {
+      // Libera o mic IMEDIATAMENTE (crítico mobile)
+      if(window._pttStateJ.stream){
+        try{ window._pttStateJ.stream.getTracks().forEach(t=>{try{t.stop();}catch(e){}}); }catch(e){}
+        window._pttStateJ.stream = null;
+      }
+
+      const btnEl = document.getElementById(window._pttStateJ.btnId || btnId);
+      if(btnEl){
+        btnEl.style.color = '';
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<span class="j-spinner"></span>';
+      }
+
+      try{
+        if(!window._pttStateJ.chunks.length){
+          window.toast('Gravação vazia — fale algo antes de parar.','err');
+          _pttLimparJ(); return;
+        }
+        const blob = new Blob(window._pttStateJ.chunks, { type: window._pttStateJ.mime || 'audio/webm' });
+        if(blob.size < 500){
+          window.toast('Áudio muito curto.','err');
+          _pttLimparJ(); return;
+        }
+
+        const fd = new FormData();
+        fd.append('file', blob, 'ptt.'+(window._pttStateJ.mime.includes('mp4')?'m4a':'webm'));
+        fd.append('upload_preset', J.cloudPreset || 'evolution');
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName || 'dmuvm1o6m'}/auto/upload`,{method:'POST',body:fd});
+        const data = await res.json();
+        if(!data.secure_url) throw new Error(data?.error?.message||'Falha no upload do áudio.');
+
+        const payload = '[AUDIO]' + data.secure_url;
+        const dest = window._pttStateJ.destino;
+
+        if(dest === 'equipe'){
+          await db.collection('chat_equipe').add({
+            tenantId: J.tid,
+            de: J.tid,
+            para: J.chatEquipeAtivo,
+            sender: 'admin',
+            msg: payload,
+            tipo: 'audio',
+            url: data.secure_url,
+            lidaEquipe: false, lidaAdmin: true,
+            ts: Date.now()
+          });
+        } else {
+          await db.collection('mensagens').add({
+            tenantId: J.tid,
+            clienteId: J.chatAtivo,
+            sender: 'admin',
+            msg: payload,
+            tipo: 'audio',
+            url: data.secure_url,
+            lidaCliente: false,
+            ts: Date.now()
+          });
+        }
+        window.toast('✓ ÁUDIO ENVIADO');
+      }catch(err){
+        window.toast('✕ ERRO AO ENVIAR ÁUDIO: '+(err.message||err),'err');
+      }finally{
+        _pttLimparJ();
+      }
+    };
+
+    recorder.start();
+    btn.style.color = 'var(--danger)';
+    btn.innerHTML = '⏹';
+    btn.title = 'Clique para parar e enviar';
+    btn.setAttribute('aria-pressed','true');
+    window.toast('🔴 Gravando... Clique ⏹ para enviar.','warn');
+
+  }catch(err){
+    window.toast('⚠ Microfone não permitido: '+(err.message||err),'warn');
+    _pttLimparJ();
+  }
+};
+
+function _pttLimparJ(){
+  const st = window._pttStateJ;
+  if(st.stream){
+    try{ st.stream.getTracks().forEach(t=>{try{t.stop();}catch(e){}}); }catch(e){}
+  }
+  const btnEl = document.getElementById(st.btnId || 'btnPTT');
+  if(btnEl){
+    btnEl.style.color = '';
+    btnEl.innerHTML = _PTT_SVG_DEFAULT;
+    btnEl.disabled = false;
+    btnEl.title = 'Gravar Áudio';
+    btnEl.removeAttribute('aria-pressed');
+  }
+  window._pttStateJ = { recorder:null, stream:null, chunks:[], btnId:null, mime:'', destino:null };
+}
+
+// Liga o botão #btnPTT (chat CRM) ao togglePTT
+(function(){
+  const btnPTT = document.getElementById('btnPTT');
+  if(btnPTT){
+    btnPTT.addEventListener('click', function(){ window.togglePTT('btnPTT','crm'); });
+  }
 })();
 
-window.enviarArquivoChat = async function(input) {
+// Liga o botão #btnPTTEquipe (chat equipe admin↔mecânico) ao togglePTT
+(function(){
+  const btnPTTEq = document.getElementById('btnPTTEquipe');
+  if(btnPTTEq){
+    btnPTTEq.addEventListener('click', function(){ window.togglePTT('btnPTTEquipe','equipe'); });
+  }
+})();
+
+// ── CORREÇÃO #1 (envio): unifica tags em [IMAGEM]/[ARQUIVO]/[AUDIO] ──
+// Chat CRM (admin ↔ cliente)
+window.enviarArquivoChat = async function(input){
+  if(!input || !input.files || !input.files.length) return;
   const file = input.files[0];
-  if (!file || !J.chatAtivo) return;
-  input.value = '';
+  if(!file || !J.chatAtivo){ try{ input.value=''; }catch(e){} return; }
 
   window.toast('⏳ Enviando arquivo...');
 
-  try {
+  try{
     const fd = new FormData();
     fd.append('file', file);
     fd.append('upload_preset', J.cloudPreset || 'evolution');
 
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${J.cloudName || 'dmuvm1o6m'}/auto/upload`,
-      { method: 'POST', body: fd }
-    );
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName || 'dmuvm1o6m'}/auto/upload`, { method:'POST', body:fd });
     const data = await res.json();
+    if(!data.secure_url) throw new Error(data?.error?.message || 'URL não retornada');
 
-    if (!data.secure_url) throw new Error('URL não retornada');
-
-    const tipo = data.resource_type || 'raw'; // image, video, raw
+    const tipo = data.resource_type || 'raw';
+    const isImg = (tipo === 'image') || /^image\//.test(file.type || '');
+    const isVideo = (tipo === 'video') || /^video\//.test(file.type || '');
     let msgTexto;
-    if (tipo === 'image') msgTexto = `[IMG]${data.secure_url}`;
-    else if (tipo === 'video') msgTexto = `[VID]${data.secure_url}`;
-    else msgTexto = `📎 Arquivo: ${file.name}\n${data.secure_url}`;
+    if(isImg)        msgTexto = '[IMAGEM]' + data.secure_url;
+    else if(isVideo) msgTexto = '[VIDEO]'  + data.secure_url;
+    else             msgTexto = '[ARQUIVO]'+ data.secure_url;
 
     await db.collection('mensagens').add({
       tenantId: J.tid,
@@ -1731,8 +1922,60 @@ window.enviarArquivoChat = async function(input) {
     });
 
     window.toast('✓ ARQUIVO ENVIADO');
-  } catch (e) {
-    window.toast('✕ ERRO AO ENVIAR ARQUIVO: ' + e.message, 'err');
+  }catch(e){
+    window.toast('✕ ERRO AO ENVIAR ARQUIVO: '+(e.message||e),'err');
+  }finally{
+    try{ input.value=''; }catch(e){}
+  }
+};
+
+// ── CORREÇÃO #2: Chat EQUIPE (admin ↔ mecânico) agora aceita anexos ──
+window.enviarArquivoChatEquipe = async function(input){
+  if(!input || !input.files || !input.files.length) return;
+  const file = input.files[0];
+  if(!file || !J.chatEquipeAtivo){
+    if(!J.chatEquipeAtivo) window.toast('⚠ Selecione um membro da equipe primeiro','warn');
+    try{ input.value=''; }catch(e){}
+    return;
+  }
+
+  window.toast('⏳ Enviando arquivo...');
+
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', J.cloudPreset || 'evolution');
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${J.cloudName || 'dmuvm1o6m'}/auto/upload`, { method:'POST', body:fd });
+    const data = await res.json();
+    if(!data.secure_url) throw new Error(data?.error?.message || 'URL não retornada');
+
+    const tipo = data.resource_type || 'raw';
+    const isImg = (tipo === 'image') || /^image\//.test(file.type || '');
+    const isVideo = (tipo === 'video') || /^video\//.test(file.type || '');
+    let msgTexto;
+    if(isImg)        msgTexto = '[IMAGEM]' + data.secure_url;
+    else if(isVideo) msgTexto = '[VIDEO]'  + data.secure_url;
+    else             msgTexto = '[ARQUIVO]'+ data.secure_url;
+
+    await db.collection('chat_equipe').add({
+      tenantId: J.tid,
+      de: J.tid,
+      para: J.chatEquipeAtivo,
+      sender: 'admin',
+      msg: msgTexto,
+      tipo: tipo,
+      url: data.secure_url,
+      nomeArquivo: file.name,
+      lidaEquipe: false, lidaAdmin: true,
+      ts: Date.now()
+    });
+
+    window.toast('✓ ARQUIVO ENVIADO');
+  }catch(e){
+    window.toast('✕ ERRO AO ENVIAR ARQUIVO: '+(e.message||e),'err');
+  }finally{
+    try{ input.value=''; }catch(e){}
   }
 };
 
