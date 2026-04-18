@@ -237,10 +237,28 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .dre-card.saldo .dre-val{color:var(--cyan);}
 .stock-critical{background:rgba(255,59,59,0.08);border-left:3px solid var(--danger);}
 
+/* ──────── BOTÃO HAMBÚRGUER MOBILE (escondido no desktop) ──────── */
+.btn-hamburger{display:none;position:fixed;top:14px;left:14px;z-index:1200;width:44px;height:44px;background:var(--surf);border:1px solid var(--border2);border-radius:6px;color:var(--cyan);font-size:1.3rem;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.5);touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.btn-hamburger:hover{background:var(--surf2);}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1050;backdrop-filter:blur(2px);}
+.sidebar-backdrop.open{display:block;}
+
 @media(max-width:768px){
   :root{--sidebar:0px;}
-  .sidebar{display:none;}
-  .topbar{padding: 14px 16px;}
+  /* Sidebar vira DRAWER deslizante em vez de desaparecer */
+  .sidebar{
+    display:flex !important;
+    position:fixed;
+    top:0;left:0;bottom:0;
+    width:260px;
+    z-index:1100;
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    box-shadow:4px 0 20px rgba(0,0,0,0.7);
+  }
+  .sidebar.open{transform:translateX(0);}
+  .btn-hamburger{display:flex;}
+  .topbar{padding: 14px 16px 14px 66px;}  /* espaço para o hambúrguer */
   .content{padding: 16px;}
   .kpi-grid{grid-template-columns:1fr 1fr;}
   .dre-grid{grid-template-columns:1fr;}
@@ -248,18 +266,54 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   .kanban-wrap{flex-direction:column; padding-right:0;}
   .k-col{min-width:100%; width:100%; max-height: none; margin-bottom:14px;}
   .k-col-body{max-height: 400px;}
-  .chat-layout{grid-template-columns:1fr; height: calc(100vh - 120px);}
-  .chat-list { max-height: 30vh; }
-  
+
+  /* ─── CHAT MOBILE — LISTA "OU" CONVERSA (estilo WhatsApp Web) ─── */
+  /* Por padrão, o chat mostra a LISTA.
+     Quando o JS adiciona .chat-open no container, mostra a CONVERSA. */
+  .chat-layout{
+    grid-template-columns:1fr !important;
+    height: calc(100vh - 120px);
+    position:relative;
+  }
+  .chat-list{max-height:none;height:100%;}
+  .chat-main{display:none;}
+  .chat-layout.chat-open .chat-list{display:none;}
+  .chat-layout.chat-open .chat-main{display:flex;}
+  .chat-head{
+    position:relative;
+    padding-left:44px !important;  /* espaço para o botão voltar */
+  }
+  .chat-back-btn{
+    display:flex;
+    position:absolute;
+    left:10px;top:50%;
+    transform:translateY(-50%);
+    width:30px;height:30px;
+    background:transparent;border:none;
+    color:var(--cyan);font-size:1.4rem;
+    cursor:pointer;
+    align-items:center;justify-content:center;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* Garante que o rodapé do chat APAREÇA quando a conversa está aberta,
+     mesmo que o style inline antigo diga display:none — o JS já muda */
+  .chat-layout.chat-open .chat-foot{display:flex !important;}
+
   .overlay{padding:10px; align-items:center;}
   .modal{max-height: 90vh; display:flex; flex-direction:column;}
   .modal-body, .tab-pane{overflow-y:auto; padding:16px;}
   .modal-head, .modal-foot{padding:14px 16px;}
-  
+
   .grid-servicos { grid-template-columns: 1fr 80px 32px; }
   .grid-pecas { grid-template-columns: 1fr 1fr; gap:6px; background: rgba(0,0,0,0.2); padding:10px; border-radius:4px; margin-bottom:10px;}
   .grid-pecas .peca-sel { grid-column: span 2; }
   .cabecalho-pecas { display: none !important; }
+}
+
+/* Desktop: oculta botão de voltar do chat (só existe no mobile) */
+@media(min-width:769px){
+  .chat-back-btn{display:none !important;}
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -297,6 +351,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </head>
 <body>
 <div id="toastBox"></div>
+
+<!-- BOTÃO HAMBÚRGUER (só aparece no mobile, fixed top-left) -->
+<button type="button" id="btnHamburger" class="btn-hamburger" onclick="window.toggleSidebarMobile()" aria-label="Abrir menu" title="Menu">☰</button>
+<!-- Backdrop (fundo escurecido) que fecha o drawer ao clicar -->
+<div id="sidebarBackdrop" class="sidebar-backdrop" onclick="window.toggleSidebarMobile(false)"></div>
 
 <div class="layout">
 
@@ -603,7 +662,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       <div class="chat-layout">
         <div class="chat-list" id="chatLista"></div>
         <div class="chat-main">
-          <div class="chat-head" id="chatHead">Selecione um cliente</div>
+          <div class="chat-head" id="chatHead"><button type="button" class="chat-back-btn" onclick="window.fecharChatMobile('chat')" aria-label="Voltar para lista">‹</button>Selecione um cliente</div>
           <div class="chat-msgs" id="chatMsgs"></div>
           <div class="chat-foot" id="chatFoot" style="display:none; gap:8px; align-items:center;">
             <button class="btn-ghost" id="btnPTT" title="Gravar Áudio" style="padding:8px; border-radius:50%;"><svg style="width:18px;height:18px;"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
@@ -622,7 +681,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <!-- Lista de membros da equipe -->
         <div class="chat-list" id="chatEquipeLista"></div>
         <div class="chat-main">
-          <div class="chat-head" id="chatEquipeHead">Selecione um membro da equipe</div>
+          <div class="chat-head" id="chatEquipeHead"><button type="button" class="chat-back-btn" onclick="window.fecharChatMobile('chatequipe')" aria-label="Voltar para lista">‹</button>Selecione um membro da equipe</div>
           <div class="chat-msgs" id="chatEquipeMsgs"></div>
           <div class="chat-foot" id="chatEquipeFoot" style="display:none; gap:8px; align-items:center;">
             <button class="btn-ghost" id="btnPTTEquipe" title="Gravar Áudio" aria-label="Gravar áudio" style="padding:8px; border-radius:50%;"><svg style="width:18px;height:18px;"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
@@ -1135,6 +1194,55 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+// THIAGUINHO — USABILIDADE MOBILE (hambúrguer, chat drawer, IA)
+// Powered by thIAguinho Soluções Digitais
+// ═══════════════════════════════════════════════════════════════
+
+// Abre/fecha o menu lateral no mobile. No desktop não faz nada (sidebar é fixa).
+window.toggleSidebarMobile = function(forceState){
+  const sb = document.querySelector('.sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  if(!sb || !bd) return;
+  const shouldOpen = (typeof forceState === 'boolean') ? forceState : !sb.classList.contains('open');
+  if(shouldOpen){
+    sb.classList.add('open');
+    bd.classList.add('open');
+  } else {
+    sb.classList.remove('open');
+    bd.classList.remove('open');
+  }
+};
+
+// Fecha a conversa aberta e volta para a lista de contatos (mobile).
+window.fecharChatMobile = function(tipo){
+  const selector = tipo === 'chatequipe' ? '#s-chatequipe .chat-layout' : '#s-chat .chat-layout';
+  const layout = document.querySelector(selector);
+  if(layout) layout.classList.remove('chat-open');
+  // Também zera o chat ativo para evitar que novas mensagens apareçam "fantasma"
+  if(tipo === 'chatequipe'){
+    if(window.J) window.J.chatEquipeAtivo = null;
+  } else {
+    if(window.J) window.J.chatAtivo = null;
+  }
+};
+
+// Fecha o drawer automaticamente quando o usuário clica num item do menu (mobile).
+document.addEventListener('click', function(ev){
+  const item = ev.target.closest('.nav-item');
+  if(item && window.innerWidth <= 768){
+    window.toggleSidebarMobile(false);
+  }
+}, true);
+
+// Fecha o drawer com tecla ESC
+document.addEventListener('keydown', function(ev){
+  if(ev.key === 'Escape'){
+    const sb = document.querySelector('.sidebar');
+    if(sb && sb.classList.contains('open')) window.toggleSidebarMobile(false);
+  }
+});
+
 // ============================================================
 // BOOTSTRAP DO SISTEMA E IA
 // ============================================================
@@ -1305,9 +1413,12 @@ window.renderChatEquipeLista = function() {
 window.abrirChatEquipe = function(fid, nome) {
   J.chatEquipeAtivo = fid;
   const head = $('chatEquipeHead');
-  if (head) head.innerText = 'CHAT: ' + nome.toUpperCase();
+  if (head) head.innerHTML = '<button type="button" class="chat-back-btn" onclick="window.fecharChatMobile(\'chatequipe\')" aria-label="Voltar para lista">‹</button>CHAT: '+(_escHtmlJ?_escHtmlJ(nome):nome).toUpperCase();
   const foot = $('chatEquipeFoot');
   if (foot) foot.style.display = 'flex';
+  // No mobile: marca o layout como "conversa aberta"
+  const layoutEq = document.querySelector('#s-chatequipe .chat-layout');
+  if(layoutEq) layoutEq.classList.add('chat-open');
   window.renderChatEquipeMsgs(fid);
   // Marcar como lidas
   J.chatEquipeMsgs
@@ -1642,7 +1753,16 @@ window.renderChatLista = function() {
   }).join('');
 }
 window.abrirChat = function(cid, nome) {
-  J.chatAtivo=cid; $('chatHead').innerText='ATENDIMENTO: '+nome.toUpperCase(); $('chatFoot').style.display='flex'; window.renderChatMsgs(cid);
+  J.chatAtivo=cid;
+  const head=$('chatHead');
+  if(head){
+    head.innerHTML = '<button type="button" class="chat-back-btn" onclick="window.fecharChatMobile(\'chat\')" aria-label="Voltar para lista">‹</button>ATENDIMENTO: '+(_escHtmlJ?_escHtmlJ(nome):nome).toUpperCase();
+  }
+  $('chatFoot').style.display='flex';
+  // No mobile: marca o layout como "conversa aberta" (esconde lista, mostra conversa)
+  const layoutCrm = document.querySelector('#s-chat .chat-layout');
+  if(layoutCrm) layoutCrm.classList.add('chat-open');
+  window.renderChatMsgs(cid);
   J.mensagens.filter(m=>m.clienteId===cid&&m.sender==='cliente'&&!m.lidaAdmin).forEach(m=>{ db.collection('mensagens').doc(m.id).update({lidaAdmin:true}); });
 }
 window.renderChatMsgs = function(cid) {
