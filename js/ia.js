@@ -46,7 +46,7 @@ window.iaPerguntar = async function() {
     return;
   }
 
-  // 1. INJEÇÃO DA MEMÓRIA GLOBAL DO GESTOR (Últimos 24 meses + Estoque + Contexto de Auditoria)
+  // 1. INJEÇÃO DA MEMÓRIA GLOBAL DO GESTOR (Últimos 24 meses + Estoque + Contexto de Auditoria + OBD2 + Timeline)
   let historyContext = "BASE DE DADOS DE SERVIÇOS DA OFICINA (Últimos 24 meses):\n";
   const limiteData = new Date();
   limiteData.setMonth(limiteData.getMonth() - 24);
@@ -60,6 +60,24 @@ window.iaPerguntar = async function() {
       historyContext += `- Relato/Diag: ${o.desc || 'N/A'} | ${o.diagnostico || 'N/A'}\n`;
       if (o.pecas && o.pecas.length > 0) historyContext += `- Peças Trocadas: ${o.pecas.map(p => p.desc).join(', ')}\n`;
       if (o.servicos && o.servicos.length > 0) historyContext += `- Serviços Executados: ${o.servicos.map(s => s.desc).join(', ')}\n`;
+      
+      // CIRURGIA DE DADOS: Injetando Códigos do Scanner OBD2 enviados pelo cliente
+      if (o.dtcsCliente && o.dtcsCliente.length > 0) {
+          const codigos = o.dtcsCliente.map(d => d.code || d).join(', ');
+          historyContext += `- [Scanner do Cliente (OBD2): Erros Detectados -> ${codigos}]\n`;
+      }
+      
+      // CIRURGIA DE DADOS: Injetando a Timeline (Deep Diff) para auditoria granular
+      if (o.timeline && o.timeline.length > 0) {
+          historyContext += `- Histórico Recente de Alterações:\n`;
+          // Pega os 3 eventos mais recentes para não estourar os tokens desnecessariamente, mas garantindo auditoria
+          const ultimosEventos = [...o.timeline].reverse().slice(0, 3);
+          ultimosEventos.forEach(tl => {
+              const dataFormatada = new Date(tl.dt).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+              historyContext += `  * [${dataFormatada}] ${tl.user || tl.usuario}: ${tl.acao}\n`;
+          });
+      }
+
       historyContext += `- Valor Total: R$ ${o.total || 0}\n\n`;
   });
 
@@ -81,6 +99,7 @@ DIRETRIZES DE AUDITORIA (EXTREMAMENTE IMPORTANTE):
 4. ALERTE O GESTOR IMEDIATAMENTE (em negrito e destaque) caso identifique que um mecânico está pedindo para trocar algo que ainda esteja na garantia com base no histórico.
 5. Explique tecnicamente por que a peça pode ter falhado prematuramente (reincidência) citando causas-raiz prováveis para evitar prejuízos à oficina.
 6. Se for uma análise financeira ou de estoque, forneça insights diretos baseados nos dados do "Cenário Atual".
+7. CRUZAMENTO DE DADOS OBD2 E HISTÓRICO: Verifique os códigos de erro (DTC) que o cliente relatou via scanner e a timeline de alterações na O.S. Compare com as Peças e Serviços executados pelo mecânico. Alerte o gestor IMEDIATAMENTE se a oficina estiver trocando peças que não têm relação técnica com o código de falha do scanner ou se o mecânico modificou quantidades de forma suspeita.
 
 Cenário Atual da Oficina: ${infoOficina}
 
