@@ -425,13 +425,133 @@ window.salvarOS = async function() {
   if (pecas.length > 0) payload.pecas = pecas;
   payload.maoObra = totalMaoObra;
 
-  const tl = JSON.parse($('osTimelineData')?.value || '[]');
-  tl.push({ dt: new Date().toISOString(), user: J.nome, acao: `${osId ? 'Editou' : 'Abriu'} O.S. — Status: ${$v('osStatus')}` });
-  payload.timeline = tl;
-  
+  // Mapeia media para o payload antes do Deep Diff para podermos comparar
   if ($('osMediaArray')) {
       payload.media = JSON.parse($('osMediaArray').value || '[]');
   }
+
+  // --- INÍCIO: DEEP DIFF (AUDITORIA GRANULAR) ---
+  const funcUser = J.nome || 'Mecânico/Gestor';
+  let tl = [];
+
+  if (osId) {
+      const oldOS = J.os.find(x => x.id === osId) || {};
+      tl = oldOS.timeline ? [...oldOS.timeline] : JSON.parse($('osTimelineData')?.value || '[]');
+      let registouAlgo = false;
+
+      // 1. Mudança de Status
+      if (oldOS.status !== payload.status) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Status alterado para: ${STATUS_MAP_LEGACY[payload.status] || payload.status}` });
+          registouAlgo = true;
+      }
+
+      // 2. Mudança de Diagnóstico (Texto exato)
+      const oldDiag = (oldOS.diagnostico || '').trim();
+      const novoDiag = (payload.diagnostico || '').trim();
+      if (novoDiag && novoDiag !== oldDiag) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Diagnóstico Técnico preenchido/atualizado: "${novoDiag}"` });
+          registouAlgo = true;
+      }
+
+      // 3. Verificação Individual de Checklist
+      const mapCheck = { 
+          chkPainel: 'Painel/Instrumentos', 
+          chkPressao: 'Pressão dos Pneus', 
+          chkCarroceria: 'Carroceria/Pintura', 
+          chkDocumentos: 'Documentos' 
+      };
+      ['chkPainel', 'chkPressao', 'chkCarroceria', 'chkDocumentos'].forEach(chk => {
+          const oldVal = !!oldOS[chk];
+          const newVal = !!payload[chk];
+          if (oldVal !== newVal) {
+              const estado = newVal ? 'Marcou' : 'Desmarcou';
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `${estado} o item de inspeção: ${mapCheck[chk]}` });
+              registouAlgo = true;
+          }
+      });
+
+      // 4. Identificação de Peças (Adições, Remoções, Alterações de Qtd/Valor)
+      const oldPecas = oldOS.pecas || [];
+      const newPecas = payload.pecas || [];
+      
+      newPecas.forEach(newP => {
+          const descNovo = (newP.desc || '').toLowerCase().trim();
+          const oldP = oldPecas.find(p => (p.desc || '').toLowerCase().trim() === descNovo);
+          
+          if (!oldP) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Adicionou peça: ${newP.desc} (Qtd: ${newP.qtd})` });
+              registouAlgo = true;
+          } else {
+              if (parseFloat(oldP.qtd || 0) !== parseFloat(newP.qtd || 0) || parseFloat(oldP.venda || 0) !== parseFloat(newP.venda || 0)) {
+                  tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Alterou peça ${newP.desc} para Qtd: ${newP.qtd} / Valor: R$ ${(newP.venda||0).toFixed(2).replace('.', ',')}` });
+                  registouAlgo = true;
+              }
+          }
+      });
+      
+      oldPecas.forEach(oldP => {
+           const descOld = (oldP.desc || '').toLowerCase().trim();
+           const newP = newPecas.find(p => (p.desc || '').toLowerCase().trim() === descOld);
+           if (!newP) {
+               tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Removeu peça: ${oldP.desc}` });
+               registouAlgo = true;
+           }
+      });
+
+      // 5. Identificação de Serviços (Adições, Remoções, Alterações de Valor)
+      const oldServicos = oldOS.servicos || [];
+      const newServicos = payload.servicos || [];
+      
+      newServicos.forEach(newS => {
+          const descNovo = (newS.desc || '').toLowerCase().trim();
+          const oldS = oldServicos.find(s => (s.desc || '').toLowerCase().trim() === descNovo);
+          
+          if (!oldS) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Adicionou serviço: ${newS.desc}` });
+              registouAlgo = true;
+          } else {
+              if (parseFloat(oldS.valor || 0) !== parseFloat(newS.valor || 0)) {
+                  tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Alterou valor do serviço ${newS.desc} para R$ ${(newS.valor||0).toFixed(2).replace('.', ',')}` });
+                  registouAlgo = true;
+              }
+          }
+      });
+      
+      oldServicos.forEach(oldS => {
+           const descOld = (oldS.desc || '').toLowerCase().trim();
+           const newS = newServicos.find(s => (s.desc || '').toLowerCase().trim() === descOld);
+           if (!newS) {
+               tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Removeu serviço: ${oldS.desc}` });
+               registouAlgo = true;
+           }
+      });
+
+      // 6. Novas Fotos/Evidências
+      const oldMediaLength = (oldOS.media || oldOS.fotos || []).length;
+      const newMediaLength = (payload.media || []).length;
+      if (newMediaLength > oldMediaLength) {
+          const adicionadas = newMediaLength - oldMediaLength;
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Anexou ${adicionadas} nova(s) foto(s)/vídeo(s) de evidência.` });
+          registouAlgo = true;
+      } else if (newMediaLength < oldMediaLength) {
+          const removidas = oldMediaLength - newMediaLength;
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Removeu ${removidas} foto(s)/vídeo(s) de evidência.` });
+          registouAlgo = true;
+      }
+
+      // Fallback genérico caso tenha havido uma edição noutros campos (como KM)
+      if (!registouAlgo) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Atualizou os detalhes gerais da Ordem de Serviço.` });
+      }
+      
+  } else {
+      // Criação de Nova O.S.
+      tl = JSON.parse($('osTimelineData')?.value || '[]');
+      tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Abriu a O.S. (Status inicial: ${STATUS_MAP_LEGACY[payload.status] || payload.status})` });
+  }
+
+  payload.timeline = tl;
+  // --- FIM: DEEP DIFF ---
 
   if (($v('osStatus') === 'Pronto' || $v('osStatus') === 'Entregue' || $v('osStatus') === 'pronto' || $v('osStatus') === 'entregue') && payload.mecId) {
       const mec = J.equipe.find(f => f.id === payload.mecId);
