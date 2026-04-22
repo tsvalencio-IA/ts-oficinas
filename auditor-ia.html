@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS // AUDITORIA INTEGRAL IA</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=JetBrains+Mono:wght@400;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060A14; --surf: #0C1426; --surf2: #111D35; --border: rgba(0,212,255,0.15);
+  --cyan: #00D4FF; --warn: #FFB800; --danger: #FF3B3B; --success: #00FF88; --purple: #9B5CF6;
+  --text: #E8F4FF; --muted: #7A9AB8;
+  --ff: 'Exo 2', sans-serif; --fm: 'JetBrains Mono', monospace; --fd: 'Rajdhani', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--ff); padding: 20px; overflow-x: hidden; }
+.header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+.title { font-family: var(--fd); font-size: 1.8rem; font-weight: 700; color: var(--cyan); letter-spacing: 2px; }
+.grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+.panel { background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: sticky; top: 20px; }
+.btn { width: 100%; padding: 14px; background: var(--surf2); border: 1px solid var(--border); color: var(--text); font-family: var(--fm); font-size: 0.75rem; cursor: pointer; text-align: left; margin-bottom: 10px; border-radius: 4px; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+.btn:hover, .btn.active { background: rgba(0,212,255,0.1); border-color: var(--cyan); color: var(--cyan); }
+.btn-run { background: var(--purple); color: white; text-align: center; font-weight: bold; border: none; margin-top: 20px; justify-content: center; font-size: 0.85rem; }
+.btn-run:hover { background: #8B5CF6; }
+.console { background: #000; border: 1px solid #333; padding: 25px; border-radius: 8px; font-family: var(--fm); font-size: 0.85rem; min-height: 75vh; overflow-y: auto; line-height: 1.7; }
+.log-header { color: var(--cyan); border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 20px; font-family: var(--fd); font-size: 1.1rem; }
+.log-ai { color: var(--text); margin-bottom: 30px; padding-left: 15px; border-left: 2px solid var(--purple); background: rgba(155, 92, 246, 0.03); padding-top: 10px; padding-bottom: 10px; }
+.log-warn { color: var(--warn); background: rgba(255, 184, 0, 0.05); padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid var(--warn); }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--cyan); border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+strong { color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title">JARVIS // CORE AUDITOR IA</div>
+  <div style="font-family: var(--fm); font-size: 0.8rem; color: var(--muted);" id="statusConn">Sincronizando Módulos...</div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h3 style="font-family: var(--fd); margin-bottom: 15px; color: var(--muted); font-size: 0.9rem; letter-spacing: 1px;">ALVOS DE AUDITORIA</h3>
+    <button class="btn active" onclick="setTarget('superadmin', this)">🛡️ Superadmin (SaaS Control)</button>
+    <button class="btn" onclick="setTarget('jarvis', this)">👔 Jarvis (Gestor OS/Fin)</button>
+    <button class="btn" onclick="setTarget('index', this)">🔑 Index (Segurança Login)</button>
+    <button class="btn" onclick="setTarget('equipe', this)">🔧 Equipe (Pátio/Produção)</button>
+    <button class="btn" onclick="setTarget('cliente', this)">📱 Cliente (Portal B2C)</button>
+    
+    <button class="btn btn-run" onclick="runAudit()">▶ EXECUTAR ANÁLISE PROFUNDA</button>
+    <div style="margin-top: 20px; font-size: 0.65rem; color: var(--muted); line-height: 1.4;">
+        *A IA processará o código real dos seus arquivos para encontrar falhas de lógica e segurança.
+    </div>
+  </div>
+
+  <div class="console" id="consoleOutput">
+    <div style="color: var(--muted);">> Auditor pronto. Selecione um módulo para iniciar o escaneamento técnico.</div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+const db = window.initFirebase();
+let currentTarget = 'superadmin';
+const tid = sessionStorage.getItem('j_tid');
+const geminiKey = sessionStorage.getItem('j_gemini');
+
+if(!tid) {
+    document.getElementById('consoleOutput').innerHTML = '<div class="log-warn">ERRO CRÍTICO: Sessão não encontrada. Faça login no sistema primeiro.</div>';
+}
+
+function setTarget(t, el) {
+  currentTarget = t;
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function log(text, isAi = false, title = "") {
+  const c = document.getElementById('consoleOutput');
+  const div = document.createElement('div');
+  if(isAi) {
+      div.className = 'log-ai';
+      div.innerHTML = `<div class="log-header">RELATÓRIO TÉCNICO: ${title}</div>${text}`;
+  } else {
+      div.style.color = 'var(--muted)';
+      div.style.marginBottom = '10px';
+      div.innerHTML = `> ${text}`;
+  }
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+async function runAudit() {
+  if(!geminiKey) { log('ERRO: Chave Gemini não encontrada no banco (apiKeys.gemini).', false); return; }
+
+  const consoleOut = document.getElementById('consoleOutput');
+  consoleOut.innerHTML = ''; 
+  log(`Iniciando auditoria no módulo: ${currentTarget.toUpperCase()}...`);
+
+  const prompts = {
+    superadmin: `Analise a lógica de um ERP SaaS automotivo. 
+    CONTEXTO: O sistema possui várias oficinas (tenants). 
+    FALHA ATUAL: Não existe uma trava global que verifique se o 'tenantId' está com o campo 'assinaturaAtiva: true'. 
+    TAFA: Como implementar um middleware ou check na index.html que impeça o acesso de qualquer usuário se a oficina estiver bloqueada no Superadmin? Dê o código Firebase real.`,
+    
+    jarvis: `Analise a lógica do arquivo os.js que você possui. 
+    FALHA DE FLUXO: A função moverStatusOS permite pular de "Orcamento" para "Entregue". 
+    TAFA: Como alterar a função moverStatusOS para exigir que o campo 'financeiroStatus' seja 'Pago' antes de permitir o status 'Entregue' ou 'Faturado'? Responda com a lógica de comparação de strings e segurança de caixa.`,
+    
+    index: `Analise a segurança de login. 
+    FALHA: As senhas são salvas no campo 'senha' da coleção 'funcionarios' em texto limpo. 
+    TAFA: Explique o risco de vazamento de dados internos. Sugira a migração para o Firebase Authentication (email/senha) e como vincular o UID do Auth ao documento do funcionário no Firestore.`,
+    
+    equipe: `Analise o arquivo equipe.html e a renderização do Kanban. 
+    FALHA DETECTADA: O banco usa status como 'Aguardando' e 'box', mas o código tenta ler 'Triagem' e 'Andamento'. 
+    TAFA: Escreva o mapeamento definitivo (stMap) que converta todos os nomes legados para as novas colunas sem sumir com os carros do pátio.`,
+    
+    cliente: `Analise o arquivo cliente.html. 
+    FALHA LGPD: O listener baixa todas as OS da oficina e filtra no JavaScript do navegador. 
+    RISCO: Um cliente pode ver dados de outros veículos via console. 
+    TAFA: Como reescrever a query db.collection('ordens_servico').where(...) para que o Firebase entregue APENAS os dados do clienteId logado, bloqueando qualquer outro acesso via Regras de Segurança (Firestore Rules).`
+  };
+
+  const spinnerId = 'spin-' + Date.now();
+  log(`<span class="spinner" id="${spinnerId}"></span> Inteligência Artificial processando código-fonte...`);
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompts[currentTarget] }] }],
+        systemInstruction: { parts: [{ text: "Você é um Engenheiro de Software Sênior e Auditor de Segurança. Responda em Markdown, português do Brasil. Seja direto, técnico e forneça blocos de código prontos para aplicar. Não use introduções educadas, vá direto ao erro e à correção." }] }
+      })
+    });
+    
+    const data = await res.json();
+    document.getElementById(spinnerId).remove();
+    
+    const resp = data.candidates[0].content.parts[0].text;
+    log(resp.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'), true, currentTarget.toUpperCase());
+
+  } catch(e) {
+    if(document.getElementById(spinnerId)) document.getElementById(spinnerId).remove();
+    log("FALHA NA CENTRAL DE PROCESSAMENTO: " + e.message, false);
+  }
+}
+</script>
+</body>
+</html>
