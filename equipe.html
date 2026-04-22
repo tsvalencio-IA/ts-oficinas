@@ -264,7 +264,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 </head>
 <body>
 <div id="toastBox"></div>
-<!-- FAB Mobile: Nova O.S. -->
 <button class="fab-nova-os" onclick="prepOS('add');abrirModal('modalOS')" title="Nova O.S." aria-label="Nova Ordem de Serviço">＋</button>
 
 <div class="topbar">
@@ -369,7 +368,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   </div>
 </div>
 
-<!-- MODAL IA — z-index 9999, sempre por cima da O.S. -->
 <div class="overlay-ia" id="modalIaOS">
 <div class="modal-ia">
   <div class="modal-ia-head">
@@ -405,7 +403,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     </div>
     <button class="modal-close" onclick="fecharModal('modalOS')">✕</button>
   </div>
-  <!-- BANNER HISTÓRICO DO VEÍCULO -->
   <div id="bannerHistVeiculo" style="display:none;padding:10px 20px;background:rgba(255,184,0,0.06);border-bottom:1px solid rgba(255,184,0,0.2);">
     <div style="font-family:var(--fm);font-size:0.58rem;color:var(--warn);letter-spacing:1px;margin-bottom:5px;">⚠ HISTÓRICO DESTE VEÍCULO NA OFICINA</div>
     <div id="bannerHistContent" style="font-size:0.78rem;color:var(--text);line-height:1.6;"></div>
@@ -515,7 +512,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div style="background:var(--surf3);border:1px solid var(--border);border-radius:3px;padding:14px;">
       <div style="font-family:var(--fd);font-weight:700;margin-bottom:12px;color:var(--warn);">⚡ CHECKLIST RÁPIDO</div>
 
-      <!-- COMBUSTÍVEL - seletor visual -->
       <div class="form-group">
         <label class="j-label">Combustível</label>
         <div class="comb-grid" id="combGrid">
@@ -528,7 +524,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <input type="hidden" id="chkComb" value="N/A">
       </div>
 
-      <!-- PNEUS - sliders -->
       <div class="form-group">
         <label class="j-label">Estado dos Pneus</label>
         <div class="pneu-bar-wrap">
@@ -545,7 +540,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         </div>
       </div>
 
-      <!-- ITENS - botões toque -->
       <div class="form-group">
         <label class="j-label">Itens de Entrada</label>
         <div class="chk-grid">
@@ -572,7 +566,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <input type="hidden" id="chkDoc" value="">
       </div>
 
-      <!-- AVARIAS - com voz -->
       <div class="form-group">
         <label class="j-label">Avarias Prévias / Obs</label>
         <div class="field-voice-wrap has-textarea">
@@ -1382,6 +1375,7 @@ function selPeca(sel){
   sel.parentElement.querySelector('.peca-venda').value=opt.dataset.v||0;
 }
 
+// INTEGRAÇÃO DE DEEP DIFF E SALVAMENTO NA O.S.
 async function salvarOS(){
   if(!$v('osCliente')||!$v('osVeiculo')){toast('⚠ Cliente e veículo obrigatórios','warn');return;}
   
@@ -1409,8 +1403,92 @@ async function salvarOS(){
   pecas.forEach(p => t += (p.qtd * p.venda));
   servicos.forEach(s => t += s.valor);
 
-  const tl=JSON.parse($v('tlData')||'[]');
-  tl.push({dt:new Date().toISOString(),user:J.nome,acao:($v('osId')?'Editou':'Criou')+' O.S. — Status: '+$v('osStatus')});
+  const id = $v('osId');
+  const funcUser = J.nome || 'Mecânico';
+  let tl = [];
+
+  // --- INÍCIO: DEEP DIFF (AUDITORIA GRANULAR) ---
+  if (id) {
+      const oldOS = dbOS.find(x => x.id === id) || {};
+      tl = oldOS.timeline ? [...oldOS.timeline] : JSON.parse($v('tlData') || '[]');
+      let registouAlgo = false;
+
+      if (oldOS.status !== $v('osStatus')) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Status alterado para: ${$v('osStatus')}` });
+          registouAlgo = true;
+      }
+
+      const oldDiag = (oldOS.diagnostico || '').trim();
+      const novoDiag = ($v('osDiag') || '').trim();
+      if (novoDiag && novoDiag !== oldDiag) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Diagnóstico Técnico atualizado.` });
+          registouAlgo = true;
+      }
+
+      const mapCheck = { chkPainel: 'Painel', chkPressao: 'Pressão dos Pneus', chkCar: 'Carroceria', chkDoc: 'Documentos' };
+      ['chkPainel', 'chkPressao', 'chkCar', 'chkDoc'].forEach(chk => {
+          const oldVal = oldOS[chk];
+          const newVal = $(chk)?.value;
+          if (oldVal !== newVal && newVal) {
+              const estado = newVal === 'ok' ? 'Marcou OK' : 'Marcou FALHA';
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `${estado} na inspeção: ${mapCheck[chk]}` });
+              registouAlgo = true;
+          }
+      });
+
+      const oldPecas = oldOS.pecas || [];
+      const newPecas = pecas || [];
+      newPecas.forEach(newP => {
+          const descNovo = (newP.desc || '').toLowerCase().trim();
+          const oldP = oldPecas.find(p => (p.desc || '').toLowerCase().trim() === descNovo);
+          if (!oldP) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Adicionou peça: ${newP.desc} (Qtd: ${newP.qtd})` });
+              registouAlgo = true;
+          } else if (parseFloat(oldP.qtd || 0) !== parseFloat(newP.qtd || 0)) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Alterou quantidade da peça ${newP.desc} para ${newP.qtd}` });
+              registouAlgo = true;
+          }
+      });
+      oldPecas.forEach(oldP => {
+          const descOld = (oldP.desc || '').toLowerCase().trim();
+          if (!newPecas.find(p => (p.desc || '').toLowerCase().trim() === descOld)) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Removeu peça: ${oldP.desc}` });
+              registouAlgo = true;
+          }
+      });
+
+      const oldServicos = oldOS.servicos || [];
+      const newServicos = servicos || [];
+      newServicos.forEach(newS => {
+          const descNovo = (newS.desc || '').toLowerCase().trim();
+          if (!oldServicos.find(s => (s.desc || '').toLowerCase().trim() === descNovo)) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Adicionou serviço: ${newS.desc}` });
+              registouAlgo = true;
+          }
+      });
+      oldServicos.forEach(oldS => {
+          const descOld = (oldS.desc || '').toLowerCase().trim();
+          if (!newServicos.find(s => (s.desc || '').toLowerCase().trim() === descOld)) {
+              tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Removeu serviço: ${oldS.desc}` });
+              registouAlgo = true;
+          }
+      });
+
+      const oldMedia = (oldOS.media || []).length;
+      const newMedia = (JSON.parse($('mediaArray').value || '[]')).length;
+      if (newMedia > oldMedia) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Anexou ${newMedia - oldMedia} foto(s) de evidência.` });
+          registouAlgo = true;
+      }
+
+      if (!registouAlgo) {
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Atualizou os detalhes da O.S.` });
+      }
+  } else {
+      tl = JSON.parse($v('tlData') || '[]');
+      tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Abriu a O.S. (Status inicial: ${$v('osStatus')})` });
+  }
+  // --- FIM: DEEP DIFF ---
   
   const p={
     tenantId:J.tid,tipoVeiculo:$v('osTipo'),clienteId:$v('osCliente'),veiculoId:$v('osVeiculo'),
@@ -1426,7 +1504,7 @@ async function salvarOS(){
     chkCar:$('chkCar')?.value||'',chkDoc:$('chkDoc')?.value||'',
     timeline:tl,updatedAt:new Date().toISOString()
   };
-  const id=$v('osId');
+  
   if(id) await db.collection('ordens_servico').doc(id).update(p);
   else{p.createdAt=new Date().toISOString();await db.collection('ordens_servico').add(p);}
   toast('✓ O.S. SALVA'); fecharModal('modalOS');
