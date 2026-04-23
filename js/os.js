@@ -74,17 +74,16 @@ window.renderKanban = function() {
       const btnNext = sNext ? `<button onclick="event.stopPropagation(); window.moverStatusOS('${os.id}', '${sNext}')" title="Mover para ${sNext}" style="background:transparent;border:none;color:var(--muted2);cursor:pointer;padding:4px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18l6-6-6-6"/></svg></button>` : '<div></div>';
 
       return `<div class="k-card" style="border-left-color:${cor}" onclick="window.prepOS('edit','${os.id}');abrirModal('modalOS')">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <div class="k-placa" style="color:${cor};margin:0;">${os.placa || v?.placa || 'S/PLACA'}</div>
-            <div style="font-family:var(--fm);font-size:0.65rem;color:var(--muted2);">${c?.nome ? c.nome.split(' ')[0] : (os.cliente ? os.cliente.split(' ')[0] : '')}</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+            <div class="k-placa" style="color:${cor};margin:0;font-size:1rem;">${os.placa || v?.placa || 'S/PLACA'}</div>
         </div>
-        <div class="k-cliente" style="font-weight:600;color:var(--text);">${c?.nome || os.cliente || 'Cliente Avulso'}</div>
-        <div class="k-desc">${os.desc || os.relato || 'Sem descrição inicial...'}</div>
-        <div class="k-footer">
+        <div class="k-cliente" style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:2px;">${c?.nome || os.cliente || 'Cliente Avulso'}</div>
+        <div class="k-desc" style="margin-bottom:8px;">${os.desc || os.relato || 'Sem descrição inicial...'}</div>
+        <div class="k-footer" style="margin-bottom:8px;">
           <span class="k-tipo ${tipoCls}">${tipoLabel}</span>
-          <span style="font-family:var(--fm);font-size:0.75rem;color:var(--success);font-weight:700;">${moeda(os.total)}</span>
+          <span style="font-family:var(--fm);font-size:0.85rem;color:var(--success);font-weight:700;">${moeda(os.total)}</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;border-top:1px solid rgba(255,255,255,0.05);padding-top:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px;">
           ${btnPrev}
           <span class="k-date">${dtBr(os.createdAt || os.data)}</span>
           ${btnNext}
