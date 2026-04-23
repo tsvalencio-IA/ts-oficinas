@@ -321,6 +321,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
         <label class="mod-check"><input type="checkbox" id="mChat" value="chat"> 💬 Chat CRM</label>
         <label class="mod-check"><input type="checkbox" id="mAgd" value="agenda"> 📅 Agenda</label>
         <label class="mod-check"><input type="checkbox" id="mRH" value="rh"> 👷 Equipe / RH</label>
+<label class="mod-check"><input type="checkbox" id="mComissoes" value="comissoes"> 💸 Ver Comissões</label>
       </div>
     </div>
   </div>
@@ -549,7 +550,7 @@ function filtrarTenants(v){renderTenants(v);}
 // TENANT CRUD
 function prepTenant(mode,id=null){
   ['tId','tNome','tUser','tSenha','tWpp','tGemini','tCloudName','tCloudPreset'].forEach(f=>{if($(f))$(f).value='';});
-  ['mOS','mCrm','mEst','mFin','mIA','mChat','mAgd','mRH'].forEach(f=>{if($(f))$(f).checked=false;});
+  ['mOS','mCrm','mEst','mFin','mIA','mChat','mAgd','mRH','mComissoes'].forEach(f=>{if($(f))$(f).checked=false;});
   $('tStatus').value='Online'; $('tNicho').value='carros'; $('tPlano').value='trial';
   $('tCloudName').value='dmuvm1o6m'; $('tCloudPreset').value='evolution';
   $('modalTenantTitle').innerText='NOVA OFICINA (TENANT)';
@@ -566,6 +567,7 @@ function prepTenant(mode,id=null){
     $('mOS').checked=!!m.os; $('mCrm').checked=!!m.crm; $('mEst').checked=!!m.estoque;
     $('mFin').checked=!!m.financeiro; $('mIA').checked=!!m.ia; $('mChat').checked=!!m.chat;
     $('mAgd').checked=!!m.agenda; $('mRH').checked=!!m.rh;
+if($('mComissoes')) $('mComissoes').checked=!!m.comissoes;
     $('modalTenantTitle').innerText='EDITAR TENANT: '+(t.nomeFantasia||'').toUpperCase();
   }
 }
@@ -584,7 +586,7 @@ async function salvarTenant(){
     modulos:{
       os:$('mOS').checked, crm:$('mCrm').checked, estoque:$('mEst').checked,
       financeiro:$('mFin').checked, ia:$('mIA').checked, chat:$('mChat').checked,
-      agenda:$('mAgd').checked, rh:$('mRH').checked
+      agenda:$('mAgd').checked, rh:$('mRH').checked, comissoes:$('mComissoes')?$('mComissoes').checked:false
     },
     updatedAt:new Date().toISOString()
   };
