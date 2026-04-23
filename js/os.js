@@ -74,16 +74,14 @@ window.renderKanban = function() {
       const btnNext = sNext ? `<button onclick="event.stopPropagation(); window.moverStatusOS('${os.id}', '${sNext}')" title="Mover para ${sNext}" style="background:transparent;border:none;color:var(--muted2);cursor:pointer;padding:4px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18l6-6-6-6"/></svg></button>` : '<div></div>';
 
       return `<div class="k-card" style="border-left-color:${cor}" onclick="window.prepOS('edit','${os.id}');abrirModal('modalOS')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
-            <div class="k-placa" style="color:${cor};margin:0;font-size:1rem;">${os.placa || v?.placa || 'S/PLACA'}</div>
-        </div>
-        <div class="k-cliente" style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:2px;">${c?.nome || os.cliente || 'Cliente Avulso'}</div>
-        <div class="k-desc" style="margin-bottom:8px;">${os.desc || os.relato || 'Sem descrição inicial...'}</div>
-        <div class="k-footer" style="margin-bottom:8px;">
+        <div class="k-placa" style="color:${cor}">${os.placa || v?.placa || 'S/PLACA'}</div>
+        <div class="k-cliente">${os.cliente || c?.nome || 'Cliente não encontrado'}</div>
+        <div class="k-desc">${os.desc || os.relato || 'Sem descrição'}</div>
+        <div class="k-footer">
           <span class="k-tipo ${tipoCls}">${tipoLabel}</span>
-          <span style="font-family:var(--fm);font-size:0.85rem;color:var(--success);font-weight:700;">${moeda(os.total)}</span>
+          <span style="font-family:var(--fm);font-size:0.75rem;color:var(--success);font-weight:700;">${moeda(os.total)}</span>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;border-top:1px solid rgba(255,255,255,0.05);padding-top:4px;">
           ${btnPrev}
           <span class="k-date">${dtBr(os.createdAt || os.data)}</span>
           ${btnNext}
@@ -432,27 +430,19 @@ window.salvarOS = async function() {
       payload.media = JSON.parse($('osMediaArray').value || '[]');
   }
 
-  // --- INÍCIO: DEEP DIFF E GATILHOS (AUDITORIA E WHATSAPP) ---
+  // --- INÍCIO: DEEP DIFF (AUDITORIA GRANULAR) ---
   const funcUser = J.nome || 'Mecânico/Gestor';
   let tl = [];
-  let dispararAvisoEntrega = false;
 
   if (osId) {
       const oldOS = J.os.find(x => x.id === osId) || {};
       tl = oldOS.timeline ? [...oldOS.timeline] : JSON.parse($('osTimelineData')?.value || '[]');
       let registouAlgo = false;
 
-      // 1. Mudança de Status e Gatilhos de Notificação
+      // 1. Mudança de Status
       if (oldOS.status !== payload.status) {
-          const novoStatusLegivel = STATUS_MAP_LEGACY[payload.status] || payload.status;
-          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Status alterado para: ${novoStatusLegivel}` });
+          tl.push({ dt: new Date().toISOString(), user: funcUser, acao: `Status alterado para: ${STATUS_MAP_LEGACY[payload.status] || payload.status}` });
           registouAlgo = true;
-          
-          // Verifica se o status mudou para Pronto ou Entregue para disparar o WhatsApp
-          if ((payload.status === 'Pronto' || payload.status === 'Entregue') && 
-              oldOS.status !== 'Pronto' && oldOS.status !== 'Entregue') {
-              dispararAvisoEntrega = true;
-          }
       }
 
       // 2. Mudança de Diagnóstico (Texto exato)
@@ -612,7 +602,7 @@ window.salvarOS = async function() {
       }
   }
 
-if (osId) {
+  if (osId) {
     await db.collection('ordens_servico').doc(osId).update(payload);
     window.toast('✓ O.S. ATUALIZADA');
     audit('OS', `Editou OS ${osId.slice(-6)}`);
@@ -625,23 +615,6 @@ if (osId) {
   }
 
   if(typeof window.fecharModal === 'function') window.fecharModal('modalOS');
-
-  // Disparo automático de WhatsApp quando concluído
-  if (dispararAvisoEntrega && payload.clienteId) {
-      setTimeout(() => {
-          if (confirm('A O.S. foi marcada como PRONTA/ENTREGUE. Deseja avisar o cliente via WhatsApp agora?')) {
-              const cli = J.clientes.find(c => c.id === payload.clienteId);
-              if (cli && cli.wpp) {
-                  const fone = cli.wpp.replace(/\D/g, '');
-                  const vLabel = payload.placa || J.veiculos.find(v => v.id === payload.veiculoId)?.placa || 'seu veículo';
-                  const msg = `Olá ${cli.nome.split(' ')[0]}! 👋\n\nPassando para avisar que o serviço no *${vLabel}* já foi concluído e está *${STATUS_MAP_LEGACY[payload.status]}* na oficina ${J.tnome}.\n\nAgradecemos a confiança!`;
-                  window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, '_blank');
-              } else {
-                  window.toast('⚠ Cliente não possui WhatsApp cadastrado.', 'warn');
-              }
-          }
-      }, 500);
-  }
 };
 
 // ═══════════════════════════════════════════════════════════════
