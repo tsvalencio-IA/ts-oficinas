@@ -267,13 +267,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   .k-col{min-width:100%; width:100%; max-height: none; margin-bottom:14px;}
   .k-col-body{max-height: 400px;}
 
-  /* ─── CHAT MOBILE — LISTA "OU" CONVERSA (estilo WhatsApp Web) ─── */
+ /* ─── CHAT MOBILE — LISTA "OU" CONVERSA (estilo WhatsApp Web) ─── */
   /* Por padrão, o chat mostra a LISTA.
      Quando o JS adiciona .chat-open no container, mostra a CONVERSA. */
   .chat-layout{
     grid-template-columns:1fr !important;
-    height: calc(100vh - 120px);
+    height: calc(100dvh - 140px); /* dvh impede o teclado de engolir o chat */
     position:relative;
+    display: flex;
+    flex-direction: column;
   }
   .chat-list{max-height:none;height:100%;}
   .chat-main{display:none;}
@@ -1284,8 +1286,30 @@ document.addEventListener('DOMContentLoaded', () => {
   window.escutarEstoque(); window.escutarFinanceiro(); window.escutarEquipe();
   window.escutarFornecedores(); window.escutarMensagens(); window.escutarAgendamentos();
   window.escutarAuditoria(); window.escutarChatEquipe();
-});
 
+  // ── BLINDAGEM DE MÓDULOS (SUPERADMIN SaaS) ──
+  db.collection('oficinas').doc(J.tid).onSnapshot(doc => {
+    if (doc.exists) {
+      const ofi = doc.data();
+      const mods = ofi.modulos || {};
+      
+      const toggleMenu = (key, hasAccess) => {
+        const btn = document.querySelector(`[onclick="ir('${key}',this)"]`);
+        if (btn) btn.style.display = hasAccess ? 'flex' : 'none';
+      };
+
+      toggleMenu('kanban', mods.os !== false);
+      toggleMenu('clientes', mods.crm !== false);
+      toggleMenu('estoque', mods.estoque !== false);
+      toggleMenu('financeiro', mods.financeiro !== false);
+      toggleMenu('agenda', mods.agenda !== false);
+      toggleMenu('equipe', mods.rh !== false);
+      toggleMenu('chat', mods.chat !== false);
+      toggleMenu('chatequipe', mods.chat !== false); // Trava o chat da equipe junto
+      toggleMenu('ia', mods.ia !== false);
+    }
+  });
+});
 const sectionMap = { dashboard:'s-dashboard', agenda:'s-agenda', kanban:'s-kanban', clientes:'s-clientes', estoque:'s-estoque', financeiro:'s-financeiro', equipe:'s-equipe', chat:'s-chat', chatequipe:'s-chatequipe', ia:'s-ia', auditoria:'s-auditoria' };
 const titleMap = { dashboard:'DASHBOARD', agenda:'AGENDA', kanban:'PÁTIO / O.S.', clientes:'CLIENTES & VEÍCULOS', estoque:'ESTOQUE / NF', financeiro:'FINANCEIRO / DRE', equipe:'EQUIPE & RH', chat:'CRM CHAT', chatequipe:'CHAT EQUIPE', ia:'thIAguinho IA', auditoria:'AUDITORIA' };
 
