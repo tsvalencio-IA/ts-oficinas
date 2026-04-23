@@ -590,15 +590,45 @@ function _renderPortalOS(osList) {
       </div>
     `;
 
+    let financeiroDetalhe = '';
+    const pecas = os.pecas || [];
+    const servicos = os.servicos || [];
+    if (pecas.length > 0 || servicos.length > 0) {
+        financeiroDetalhe = `<div style="margin-bottom:20px;">
+            <span class="ficha-lbl" style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:5px; text-transform:uppercase;">Peças e Serviços Aprovados/Sugeridos</span>
+            <div style="background:var(--surf-2); border:1px solid var(--border); border-radius:var(--r-md); padding:12px;">`;
+        
+        if (servicos.length > 0) {
+            financeiroDetalhe += `<div style="font-family:var(--ff-mono); font-size:0.65rem; color:var(--brand); margin-bottom:6px; letter-spacing:1px;">MÃO DE OBRA / SERVIÇOS</div>`;
+            servicos.forEach(s => {
+                financeiroDetalhe += `<div class="detalhe-row"><span>${s.desc}</span><span class="detalhe-valor">${formatter.format(s.valor || 0)}</span></div>`;
+            });
+        }
+        if (pecas.length > 0) {
+            financeiroDetalhe += `<div style="font-family:var(--ff-mono); font-size:0.65rem; color:var(--success); margin-top:12px; margin-bottom:6px; letter-spacing:1px;">PEÇAS APLICADAS</div>`;
+            pecas.forEach(p => {
+                financeiroDetalhe += `<div class="detalhe-row"><span>${p.qtd}x ${p.desc}</span><span class="detalhe-valor">${formatter.format((p.qtd || 1) * (p.venda || 0))}</span></div>`;
+            });
+        }
+        if (os.maoObra) {
+            financeiroDetalhe += `<div class="detalhe-row" style="margin-top:8px; border-top:1px dashed var(--border); padding-top:8px; color:var(--text-muted);"><span>Mão de Obra Avulsa</span><span class="detalhe-valor">${formatter.format(os.maoObra)}</span></div>`;
+        }
+        
+        financeiroDetalhe += `<div class="detalhe-row" style="margin-top:10px; border-top:1px solid var(--border); padding-top:12px; color:var(--warn);"><span>TOTAL ESTIMADO/APROVADO</span><span class="detalhe-valor" style="font-size:1.2rem;">${formatter.format(os.total || 0)}</span></div>`;
+        financeiroDetalhe += `</div></div>`;
+    }
+
     let detalheHtml = `<div class="os-details">
         <div style="margin-bottom:15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom:15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div><span class="ficha-lbl" style="font-size:0.7rem; color:var(--text-muted); display:block;">Veículo</span><span class="ficha-val" style="font-weight:bold;">${v.modelo || os.veiculo || '—'}</span></div>
             <div><span class="ficha-lbl" style="font-size:0.7rem; color:var(--text-muted); display:block;">Ano / Cor</span><span class="ficha-val" style="font-weight:bold;">${v.ano || '—'} / ${v.cor || '—'}</span></div>
         </div>
         <div style="margin-bottom:20px;"><span class="ficha-lbl" style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:5px;">Diagnóstico Técnico</span><div style="font-size:0.85rem; background:rgba(0,0,0,0.2); padding:10px; border-radius:var(--r-md); border-left:3px solid var(--brand);">${os.diagnostico || 'Avaliação técnica em andamento...'}</div></div>
+        ${financeiroDetalhe}
         ${(os.media && os.media.length > 0) || (os.fotos && os.fotos.length > 0) ? `<div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase;">Evidências (Fotos/Vídeos)</div><div class="media-grid">${(os.media || os.fotos || []).map(m => `<div class="media-item"><img src="${m.url || m}" onclick="window.open('${m.url || m}')"></div>`).join('')}</div>` : ''}
         ${timelineHtml}
     </div>`;
+
 
     return `
       <div class="os-card">
@@ -1025,12 +1055,23 @@ ${ctx}${dtcContext}`;
         systemInstruction: { parts: [{ text: systemInstructionText }] }
       })
     });
+    
     const data = await res.json();
-    const resp = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Desculpe, ocorreu um erro ao processar sua mensagem.';
+    
+    // Trava para forçar o erro real aparecer e não engolir o problema
+    if (!res.ok) {
+        throw new Error(data?.error?.message || `Erro na API do Google (Status: ${res.status})`);
+    }
+    
+    const resp = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!resp) throw new Error("A resposta da IA veio vazia.");
+
     _iaHist.push({ role: 'model', text: resp });
     _iaReplace(lid, resp.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>'));
   } catch(e) {
-    _iaReplace(lid, _iaFallback(msg, kmDoCliente, activeDTCs));
+    // Se a IA der erro grave (como quota excedida ou API Key inválida), joga pro modo Offline (Fallback) e mostra o erro
+    const fallbackTxt = _iaFallback(msg, kmDoCliente, activeDTCs);
+    _iaReplace(lid, `${fallbackTxt}<br><br><small style="color:var(--danger);font-family:var(--ff-mono);">[Modo Offline] Erro técnico: ${e.message}</small>`);
   }
 }
 
