@@ -95,7 +95,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .section.active{display:block;}
 
 /* KPI ROW (mecânico) */
-.mec-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;}
+.mec-kpis{display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-bottom:20px;}
 .mec-kpi{background:var(--surf);border:1px solid var(--border);border-radius:3px;padding:16px;position:relative;overflow:hidden;}
 .mec-kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
 .mec-kpi.c1::after{background:var(--cyan);}
@@ -298,12 +298,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           <div class="mec-kpi-label">MINHAS O.S. ABERTAS</div>
           <div class="mec-kpi-val" id="kMeusOS">0</div>
         </div>
-        <div class="mec-kpi c2">
+<div class="mec-kpi c2">
           <div class="mec-kpi-label">EM EXECUÇÃO AGORA</div>
           <div class="mec-kpi-val" id="kEmExec">0</div>
         </div>
+        <div class="mec-kpi c3" id="kpiComissao" style="display:none; border-bottom: 2px solid var(--success);">
+          <div class="mec-kpi-label" style="color:var(--success)">COMISSÕES A RECEBER</div>
+          <div class="mec-kpi-val" id="kMinhaComissao" style="color:var(--success);">R$ 0,00</div>
+        </div>
       </div>
-
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
         <div style="position:relative;flex:1;max-width:240px;">
           <input class="j-input" id="searchOS" placeholder="Buscar placa..." oninput="renderKanban()" style="padding-left:10px;">
@@ -1187,6 +1190,33 @@ document.addEventListener('DOMContentLoaded',()=>{
     const badge=$('chatTabBadge');
     if(nLidas>0){badge.classList.remove('d-none');badge.innerText=nLidas;}
     else badge.classList.add('d-none');
+  });
+
+  // VERIFICA PERMISSÃO DE COMISSÃO DO GESTOR
+  db.collection('oficinas').doc(J.tid).onSnapshot(doc => {
+    if (doc.exists) {
+      const ofi = doc.data();
+      const podeVer = ofi.modulos && ofi.modulos.comissoes === true;
+      const cardComissao = document.getElementById('kpiComissao');
+      
+      if (cardComissao) cardComissao.style.display = podeVer ? 'block' : 'none';
+
+      if (podeVer) {
+        db.collection('financeiro')
+          .where('tenantId', '==', J.tid)
+          .where('mecId', '==', J.fid)
+          .where('status', '==', 'Pendente')
+          .onSnapshot(finSnap => {
+            let totalComissao = 0;
+            finSnap.docs.forEach(fDoc => {
+              const fin = fDoc.data();
+              if (fin.isComissao) totalComissao += (fin.valor || 0);
+            });
+            const valEl = document.getElementById('kMinhaComissao');
+            if (valEl) valEl.innerText = 'R$ ' + totalComissao.toFixed(2).replace('.', ',');
+          });
+      }
+    }
   });
 });
 
