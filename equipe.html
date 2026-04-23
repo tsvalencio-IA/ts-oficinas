@@ -302,9 +302,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
           <div class="mec-kpi-label">EM EXECUÇÃO AGORA</div>
           <div class="mec-kpi-val" id="kEmExec">0</div>
         </div>
-        <div class="mec-kpi c3" id="kpiComissao" style="display:none; border-bottom: 2px solid var(--success);">
-          <div class="mec-kpi-label" style="color:var(--success)">COMISSÕES A RECEBER</div>
-          <div class="mec-kpi-val" id="kMinhaComissao" style="color:var(--success);">R$ 0,00</div>
+<div class="mec-kpi c3" id="kpiComissao" style="display:none; border-bottom: 2px solid var(--success); cursor:pointer; transition: background 0.2s;" onclick="abrirModal('modalExtratoFunc')" onmouseover="this.style.background='rgba(0, 255, 136, 0.05)'" onmouseout="this.style.background=''">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="mec-kpi-label" style="color:var(--success)">COMISSÕES A RECEBER</div>
+              <div class="mec-kpi-val" id="kMinhaComissao" style="color:var(--success);">R$ 0,00</div>
+            </div>
+            <div style="font-size:1.4rem; opacity:0.6;">📄</div>
+          </div>
+          <div style="font-family:var(--fm);font-size:0.55rem;color:var(--muted);margin-top:8px;text-align:right;">CLIQUE PARA VER EXTRATO COMPLETO ➔</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
@@ -583,12 +589,40 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
     <div class="timeline" id="osTimeline"></div>
   </div>
 
-  <div class="modal-foot">
+<div class="modal-foot">
     <button class="btn-ghost" onclick="fecharModal('modalOS')">CANCELAR</button>
     <button class="btn-primary" onclick="salvarOS()">SALVAR O.S.</button>
   </div>
   <input type="hidden" id="osId">
   <input type="hidden" id="tlData" value="[]">
+</div>
+</div>
+
+<div class="overlay" id="modalExtratoFunc">
+<div class="modal">
+  <div class="modal-head">
+    <div class="modal-title">📄 EXTRATO FINANCEIRO</div>
+    <button class="modal-close" onclick="fecharModal('modalExtratoFunc')">✕</button>
+  </div>
+  <div class="modal-body" style="padding: 0; max-height: 60vh; overflow-y: auto;">
+    <table class="j-table" style="margin: 0;">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Tipo</th>
+          <th>Descrição / Origem</th>
+          <th>Status</th>
+          <th>Valor</th>
+        </tr>
+      </thead>
+      <tbody id="tbExtratoFunc">
+        <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:0.8rem;">Carregando histórico...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="modal-foot">
+    <button class="btn-ghost" onclick="fecharModal('modalExtratoFunc')">FECHAR</button>
+  </div>
 </div>
 </div>
 
@@ -1192,7 +1226,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     else badge.classList.add('d-none');
   });
 
-  // VERIFICA PERMISSÃO DE COMISSÃO DO GESTOR
+// VERIFICA PERMISSÃO DE COMISSÃO DO GESTOR E MONTA EXTRATO
   db.collection('oficinas').doc(J.tid).onSnapshot(doc => {
     if (doc.exists) {
       const ofi = doc.data();
@@ -1202,24 +1236,71 @@ document.addEventListener('DOMContentLoaded',()=>{
       if (cardComissao) cardComissao.style.display = podeVer ? 'block' : 'none';
 
       if (podeVer) {
+        // Trazemos TODO o histórico financeiro amarrado a este usuário
         db.collection('financeiro')
           .where('tenantId', '==', J.tid)
           .where('mecId', '==', J.fid)
-          .where('status', '==', 'Pendente')
           .onSnapshot(finSnap => {
-            let totalComissao = 0;
-            finSnap.docs.forEach(fDoc => {
-              const fin = fDoc.data();
-              if (fin.isComissao) totalComissao += (fin.valor || 0);
+            let totalPendente = 0;
+            let extratoHTML = '';
+            
+            // Organiza do mais recente para o mais antigo
+            const docs = finSnap.docs.map(d => ({id: d.id, ...d.data()}))
+                                     .sort((a,b) => (b.venc || b.createdAt) > (a.venc || a.createdAt) ? 1 : -1);
+
+            docs.forEach(fin => {
+              // 1. Calcula o total a receber no card principal (só pendentes)
+              if (fin.isComissao && fin.status === 'Pendente') {
+                totalPendente += (fin.valor || 0);
+              }
+              
+              // 2. Monta as linhas da tabela de Extrato
+              const dataStr = fin.venc ? new Date(fin.venc).toLocaleDateString('pt-BR') : '-';
+              const valorStr = 'R$ ' + (fin.valor || 0).toFixed(2).replace('.', ',');
+              
+              let tipoBadge = '';
+              let valorStyle = '';
+              
+              if (fin.isComissao) {
+                  tipoBadge = '<span class="pill pill-cyan">COMISSÃO</span>';
+                  valorStyle = 'color:var(--success)';
+              } else if (fin.tipo === 'Saída') {
+                  if ((fin.desc||'').includes('Vale') || (fin.desc||'').includes('Adiantamento')) {
+                      tipoBadge = '<span class="pill pill-warn">VALE/ADIANT.</span>';
+                      valorStyle = 'color:var(--danger)';
+                  } else {
+                      tipoBadge = '<span class="pill pill-gray">PAGAMENTO</span>';
+                      valorStyle = 'color:var(--text)';
+                  }
+              }
+              
+              const statusBadge = fin.status === 'Pago' ? '<span class="pill pill-green">PAGO/LIQUIDADO</span>' : '<span class="pill pill-warn">PENDENTE</span>';
+
+              extratoHTML += `
+                <tr>
+                  <td style="font-family:var(--fm);font-size:0.7rem;color:var(--muted)">${dataStr}</td>
+                  <td>${tipoBadge}</td>
+                  <td style="font-size:0.8rem">${fin.desc || '-'}</td>
+                  <td>${statusBadge}</td>
+                  <td style="font-family:var(--fm);font-weight:700;${valorStyle}">${valorStr}</td>
+                </tr>
+              `;
             });
+            
+            // Injeta o valor no Card
             const valEl = document.getElementById('kMinhaComissao');
-            if (valEl) valEl.innerText = 'R$ ' + totalComissao.toFixed(2).replace('.', ',');
+            if (valEl) valEl.innerText = 'R$ ' + totalPendente.toFixed(2).replace('.', ',');
+            
+            // Injeta as linhas no Modal
+            const tbExtrato = document.getElementById('tbExtratoFunc');
+            if (tbExtrato) {
+                tbExtrato.innerHTML = extratoHTML || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted);font-size:0.8rem;">Nenhum histórico financeiro encontrado.</td></tr>';
+            }
           });
       }
     }
   });
 });
-
 // ============================================================
 // KPIs
 // ============================================================
