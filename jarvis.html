@@ -801,159 +801,6 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
       </div>
     </section>
 
-
-// ══════════════════════════════════════════════════════════════════════
-// IA DO JARVIS — thIAguinho ADMIN
-// Acessa dados reais: OS, financeiro, estoque, equipe, comissões
-// Usa Gemini Flash — sem alucinação, SOMENTE dados do sistema
-// ══════════════════════════════════════════════════════════════════════
-let _jiaHist = [];
-
-function _buildContextoIA() {
-  const hoje = new Date();
-  const mesAtual = hoje.toISOString().slice(0,7); // YYYY-MM
-
-  // ── OS ──
-  let osCtx = '';
-  (J.os || []).forEach(o => {
-    const cli = (J.clientes||[]).find(c=>c.id===o.clienteId)||{};
-    const veic = (J.veiculos||[]).find(v=>v.id===o.veiculoId)||{};
-    const servs = (o.servicos||[]).map(s=>`${s.desc}(${s.tempo||0}h R$${s.valor||0})`).join(', ');
-    const pecas = (o.pecas||[]).map(p=>`${p.desc||p.codigo} x${p.qtd||1} R$${p.venda||0}`).join(', ');
-    const reais = (o.pecasReais||[]).map(p=>`[REAL]${p.desc||p.codigo} x${p.qtd||1} NF:${p.nf||'-'} Fornec:${p.fornecedor||'-'} R$${p.valorCompra||0}`).join(', ');
-    osCtx += `OS#${(o.id||'').slice(-6)} | ${o.status||'?'} | Cli:${cli.nome||o.cliente||'?'} | Veic:${veic.placa||o.placa||'?'} ${veic.modelo||o.veiculo||''} | KM:${o.km||'?'} | Data:${o.data||''} | Total:R$${o.total||0} | Serv:[${servs}] | Peças:[${pecas}]${reais?` | ReaisInstaladas:[${reais}]`:''} | EntregueA:${o.entreguePara||'-'}
-`;
-  });
-
-  // ── FINANCEIRO ──
-  const finHoje = (J.financeiro||[]).filter(f=>{
-    try { return new Date(f.data||f.vencimento).toDateString()===hoje.toDateString(); } catch(e){return false;}
-  });
-  const finMes = (J.financeiro||[]).filter(f=>{
-    try { return (f.data||f.vencimento||'').startsWith(mesAtual); } catch(e){return false;}
-  });
-  const contasPagar = finHoje.filter(f=>f.tipo==='despesa'||f.tipo==='saida');
-  const receitasMes = finMes.filter(f=>f.tipo==='receita'||f.tipo==='entrada').reduce((s,f)=>s+parseFloat(f.valor||0),0);
-  const despMes = finMes.filter(f=>f.tipo==='despesa'||f.tipo==='saida').reduce((s,f)=>s+parseFloat(f.valor||0),0);
-  const saldo = receitasMes - despMes;
-
-  let finCtx = `FINANCEIRO ${mesAtual}: Receitas=R$${receitasMes.toFixed(2)} Despesas=R$${despMes.toFixed(2)} Saldo=R$${saldo.toFixed(2)}
-`;
-  finCtx += `CONTAS PAGAR HOJE(${hoje.toLocaleDateString('pt-BR')}): ${contasPagar.length ? contasPagar.map(f=>`${f.desc||f.descricao||'?'} R$${f.valor||0}`).join('; ') : 'Nenhuma'}
-`;
-
-  // ── ESTOQUE ──
-  const estCrit = (J.estoque||[]).filter(p=>parseFloat(p.qtd||0)<=parseFloat(p.min||0));
-  const estCtx = `ESTOQUE: ${(J.estoque||[]).length} itens. Críticos(abaixo min): ${estCrit.length>0 ? estCrit.map(p=>`${p.desc}(${p.qtd}un)`).join(', ') : 'Nenhum'}
-`;
-
-  // ── EQUIPE / COMISSÕES ──
-  let equCtx = '';
-  (J.equipe||[]).forEach(e => {
-    const osMec = (J.os||[]).filter(o=>o.mecId===e.id&&(o.data||'').startsWith(mesAtual));
-    const totalMec = osMec.reduce((s,o)=>s+parseFloat(o.maoObra||o.total||0),0);
-    const comissao = +(totalMec * parseFloat(e.comissao||0)).toFixed(2);
-    equCtx += `Func:${e.nome||'?'} Cargo:${e.cargo||'?'} Salário:R$${e.salario||0} Comissão%:${(parseFloat(e.comissao||0)*100).toFixed(0)}% OS no mês:${osMec.length} MO gerada:R$${totalMec.toFixed(2)} Comissão a pagar:R$${comissao}
-`;
-  });
-
-  // ── CLIENTES / VEÍCULOS ──
-  const cliCtx = `CLIENTES: ${(J.clientes||[]).length} cadastrados. VEÍCULOS: ${(J.veiculos||[]).length} cadastrados.
-`;
-
-  return [
-    `=== CONTEXTO REAL DO SISTEMA thIAguinho (${new Date().toLocaleString('pt-BR')}) ===`,
-    `OFICINA: ${J.tnome||'?'} | USUÁRIO: ${J.nome||'?'}`,
-    cliCtx,
-    `=== ORDENS DE SERVIÇO (${(J.os||[]).length} total) ===`,
-    osCtx || 'Nenhuma OS cadastrada.',
-    `=== FINANCEIRO ===`,
-    finCtx,
-    estCtx,
-    `=== EQUIPE (${(J.equipe||[]).length} funcionários) ===`,
-    equCtx || 'Sem funcionários cadastrados.',
-    `=== FIM DO CONTEXTO ===`
-  ].join('
-');
-}
-
-async function _jiaChamar(pergunta) {
-  const key = J.gemini || J.oficina?.apiKeys?.gemini || J.oficina?.geminiKey || null;
-  const ctx = _buildContextoIA();
-
-  _jiaAddMsg('user', pergunta);
-  const lidDiv = _jiaAddMsg('bot', '<span class="j-spinner"></span> Processando...');
-
-  if (!key) {
-    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ⚠ Chave Gemini não configurada. Vá em Configurações → API Keys → Gemini e adicione sua chave para ativar a IA.`;
-    return;
-  }
-
-  try {
-    const msgs = _jiaHist.map(h=>({role:h.r==='user'?'user':'model',parts:[{text:h.t}]}));
-    const sysPrompt = `Você é o thIAguinho, assistente administrativo da oficina ${J.tnome||''}. 
-REGRAS ABSOLUTAS:
-1. Responda APENAS com base nos dados reais do sistema fornecidos abaixo. NUNCA invente valores, nomes, datas ou informações.
-2. Se a informação não estiver nos dados, diga "Não encontrei essa informação no sistema." Não suponha.
-3. Seja direto, objetivo e use formatação clara (listas quando necessário).
-4. Para perguntas financeiras, use APENAS os dados do campo FINANCEIRO.
-5. Para histórico de veículos, use APENAS os dados do campo ORDENS DE SERVIÇO.
-6. Para salários e comissões, use APENAS os dados do campo EQUIPE.
-
-${ctx}`;
-
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents: msgs,
-        systemInstruction: { parts: [{ text: sysPrompt }] }
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-    const resp = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!resp) throw new Error('Resposta vazia da IA.');
-    _jiaHist.push({r:'bot', t:resp});
-    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ${resp.replace(/
-/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}`;
-  } catch(e) {
-    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ❌ Erro: ${e.message}`;
-  }
-}
-
-function _jiaAddMsg(tipo, html) {
-  const c = document.getElementById('iaMsgs'); if(!c) return {innerHTML:''};
-  const d = document.createElement('div');
-  d.className = `ia-msg ${tipo==='user'?'user':'bot'}`;
-  d.innerHTML = tipo==='user' ? `<strong>Você:</strong> ${html}` : html;
-  c.appendChild(d);
-  c.scrollTop = c.scrollHeight;
-  _jiaHist.push({r:tipo, t:html.replace(/<[^>]*>/g,'')});
-  return d;
-}
-
-window.iaPerguntar = function() {
-  const inp = document.getElementById('iaInput');
-  const msg = inp?.value?.trim();
-  if (!msg) return;
-  inp.value = '';
-  _jiaChamar(msg);
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('iaInput')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') window.iaPerguntar();
-  });
-});
-
-window.iaAnalisarDRE = function() {
-  _jiaChamar('Analise o DRE do mês atual: receitas, despesas, saldo, e me diga se está saudável ou se há alertas.');
-};
-
-window.iaAnalisarEstoque = function() {
-  _jiaChamar('Analise o estoque atual: quais itens estão abaixo do mínimo, quais precisam ser comprados urgente, e o total em estoque.');
-};
-
     <section class="section" id="s-tabelatempa">
       <div class="j-card">
         <div class="j-card-header">
@@ -2885,6 +2732,150 @@ window.renderAuditoria = function() {
 // 24 meses de histórico + Google Search grounding + upload de PDF/imagem).
 // Este bloco foi removido pois sobrescrevia a função avançada.
 // ═══════════════════════════════════════════════════════════════
+let _jiaHist = [];
+
+function _buildContextoIA() {
+  const hoje = new Date();
+  const mesAtual = hoje.toISOString().slice(0,7); // YYYY-MM
+
+  // ── OS ──
+  let osCtx = '';
+  (J.os || []).forEach(o => {
+    const cli = (J.clientes||[]).find(c=>c.id===o.clienteId)||{};
+    const veic = (J.veiculos||[]).find(v=>v.id===o.veiculoId)||{};
+    const servs = (o.servicos||[]).map(s=>`${s.desc}(${s.tempo||0}h R$${s.valor||0})`).join(', ');
+    const pecas = (o.pecas||[]).map(p=>`${p.desc||p.codigo} x${p.qtd||1} R$${p.venda||0}`).join(', ');
+    const reais = (o.pecasReais||[]).map(p=>`[REAL]${p.desc||p.codigo} x${p.qtd||1} NF:${p.nf||'-'} Fornec:${p.fornecedor||'-'} R$${p.valorCompra||0}`).join(', ');
+    osCtx += `OS#${(o.id||'').slice(-6)} | ${o.status||'?'} | Cli:${cli.nome||o.cliente||'?'} | Veic:${veic.placa||o.placa||'?'} ${veic.modelo||o.veiculo||''} | KM:${o.km||'?'} | Data:${o.data||''} | Total:R$${o.total||0} | Serv:[${servs}] | Peças:[${pecas}]${reais?` | ReaisInstaladas:[${reais}]`:''} | EntregueA:${o.entreguePara||'-'}
+`;
+  });
+
+  // ── FINANCEIRO ──
+  const finHoje = (J.financeiro||[]).filter(f=>{
+    try { return new Date(f.data||f.vencimento).toDateString()===hoje.toDateString(); } catch(e){return false;}
+  });
+  const finMes = (J.financeiro||[]).filter(f=>{
+    try { return (f.data||f.vencimento||'').startsWith(mesAtual); } catch(e){return false;}
+  });
+  const contasPagar = finHoje.filter(f=>f.tipo==='despesa'||f.tipo==='saida');
+  const receitasMes = finMes.filter(f=>f.tipo==='receita'||f.tipo==='entrada').reduce((s,f)=>s+parseFloat(f.valor||0),0);
+  const despMes = finMes.filter(f=>f.tipo==='despesa'||f.tipo==='saida').reduce((s,f)=>s+parseFloat(f.valor||0),0);
+  const saldo = receitasMes - despMes;
+
+  let finCtx = `FINANCEIRO ${mesAtual}: Receitas=R$${receitasMes.toFixed(2)} Despesas=R$${despMes.toFixed(2)} Saldo=R$${saldo.toFixed(2)}
+`;
+  finCtx += `CONTAS PAGAR HOJE(${hoje.toLocaleDateString('pt-BR')}): ${contasPagar.length ? contasPagar.map(f=>`${f.desc||f.descricao||'?'} R$${f.valor||0}`).join('; ') : 'Nenhuma'}
+`;
+
+  // ── ESTOQUE ──
+  const estCrit = (J.estoque||[]).filter(p=>parseFloat(p.qtd||0)<=parseFloat(p.min||0));
+  const estCtx = `ESTOQUE: ${(J.estoque||[]).length} itens. Críticos(abaixo min): ${estCrit.length>0 ? estCrit.map(p=>`${p.desc}(${p.qtd}un)`).join(', ') : 'Nenhum'}
+`;
+
+  // ── EQUIPE / COMISSÕES ──
+  let equCtx = '';
+  (J.equipe||[]).forEach(e => {
+    const osMec = (J.os||[]).filter(o=>o.mecId===e.id&&(o.data||'').startsWith(mesAtual));
+    const totalMec = osMec.reduce((s,o)=>s+parseFloat(o.maoObra||o.total||0),0);
+    const comissao = +(totalMec * parseFloat(e.comissao||0)).toFixed(2);
+    equCtx += `Func:${e.nome||'?'} Cargo:${e.cargo||'?'} Salário:R$${e.salario||0} Comissão%:${(parseFloat(e.comissao||0)*100).toFixed(0)}% OS no mês:${osMec.length} MO gerada:R$${totalMec.toFixed(2)} Comissão a pagar:R$${comissao}
+`;
+  });
+
+  // ── CLIENTES / VEÍCULOS ──
+  const cliCtx = `CLIENTES: ${(J.clientes||[]).length} cadastrados. VEÍCULOS: ${(J.veiculos||[]).length} cadastrados.
+`;
+
+  return [
+    `=== CONTEXTO REAL DO SISTEMA thIAguinho (${new Date().toLocaleString('pt-BR')}) ===`,
+    `OFICINA: ${J.tnome||'?'} | USUÁRIO: ${J.nome||'?'}`,
+    cliCtx,
+    `=== ORDENS DE SERVIÇO (${(J.os||[]).length} total) ===`,
+    osCtx || 'Nenhuma OS cadastrada.',
+    `=== FINANCEIRO ===`,
+    finCtx,
+    estCtx,
+    `=== EQUIPE (${(J.equipe||[]).length} funcionários) ===`,
+    equCtx || 'Sem funcionários cadastrados.',
+    `=== FIM DO CONTEXTO ===`
+  ].join('\n');
+}
+
+async function _jiaChamar(pergunta) {
+  const key = J.gemini || J.oficina?.apiKeys?.gemini || J.oficina?.geminiKey || null;
+  const ctx = _buildContextoIA();
+
+  _jiaAddMsg('user', pergunta);
+  const lidDiv = _jiaAddMsg('bot', '<span class="j-spinner"></span> Processando...');
+
+  if (!key) {
+    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ⚠ Chave Gemini não configurada. Vá em Configurações → API Keys → Gemini e adicione sua chave para ativar a IA.`;
+    return;
+  }
+
+  try {
+    const msgs = _jiaHist.map(h=>({role:h.r==='user'?'user':'model',parts:[{text:h.t}]}));
+    const sysPrompt = `Você é o thIAguinho, assistente administrativo da oficina ${J.tnome||''}. 
+REGRAS ABSOLUTAS:
+1. Responda APENAS com base nos dados reais do sistema fornecidos abaixo. NUNCA invente valores, nomes, datas ou informações.
+2. Se a informação não estiver nos dados, diga "Não encontrei essa informação no sistema." Não suponha.
+3. Seja direto, objetivo e use formatação clara (listas quando necessário).
+4. Para perguntas financeiras, use APENAS os dados do campo FINANCEIRO.
+5. Para histórico de veículos, use APENAS os dados do campo ORDENS DE SERVIÇO.
+6. Para salários e comissões, use APENAS os dados do campo EQUIPE.
+
+${ctx}`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: msgs,
+        systemInstruction: { parts: [{ text: sysPrompt }] }
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    const resp = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!resp) throw new Error('Resposta vazia da IA.');
+    _jiaHist.push({r:'bot', t:resp});
+    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ${resp.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}`;
+  } catch(e) {
+    lidDiv.innerHTML = `<strong>thIAguinho:</strong> ❌ Erro: ${e.message}`;
+  }
+}
+
+function _jiaAddMsg(tipo, html) {
+  const c = document.getElementById('iaMsgs'); if(!c) return {innerHTML:''};
+  const d = document.createElement('div');
+  d.className = `ia-msg ${tipo==='user'?'user':'bot'}`;
+  d.innerHTML = tipo==='user' ? `<strong>Você:</strong> ${html}` : html;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+  _jiaHist.push({r:tipo, t:html.replace(/<[^>]*>/g,'')});
+  return d;
+}
+
+window.iaPerguntar = function() {
+  const inp = document.getElementById('iaInput');
+  const msg = inp?.value?.trim();
+  if (!msg) return;
+  inp.value = '';
+  _jiaChamar(msg);
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('iaInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.iaPerguntar();
+  });
+});
+
+window.iaAnalisarDRE = function() {
+  _jiaChamar('Analise o DRE do mês atual: receitas, despesas, saldo, e me diga se está saudável ou se há alertas.');
+};
+
+window.iaAnalisarEstoque = function() {
+  _jiaChamar('Analise o estoque atual: quais itens estão abaixo do mínimo, quais precisam ser comprados urgente, e o total em estoque.');
+};
 </script>
 <script src="js/fiscal.js"></script>
 <script src="js/financeiro.js"></script>
