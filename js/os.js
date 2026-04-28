@@ -352,13 +352,6 @@ window.prepOS = function(mode, id = null) {
     
     window.calcOSTotal();
     window.verificarStatusOS();
-
-    // Preenche automaticamente a busca histórica com a placa desta OS
-    if ($('histBuscaPlaca')) {
-      $('histBuscaPlaca').value = (o.placa || '').toUpperCase();
-      // Limpa resultado anterior para evitar confusão
-      if ($('histBuscaResultado')) $('histBuscaResultado').innerHTML = '';
-    }
     
     if ($('btnGerarPDFOS')) $('btnGerarPDFOS').style.display = 'block';
 
@@ -1539,8 +1532,7 @@ function _ciliaProcessarXML(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
-// ── PDF Cília: extrai texto e parseia tabela de peças ────────────────
-// Formato real Cília: "T R&I 0,00 1.00 DESCRIÇÃO Cód: CODIGO Oficina R$ PRECO_BRUTO % DESC R$ PRECO_LIQ"
+// ── PDF: extrai texto e tenta parsear tabela de peças ────────────────
 // Requer pdf.js (CDN) — carrega dinamicamente se não estiver presente
 async function _ciliaProcessarPDF(file) {
   if (typeof window.toast === 'function') window.toast('Lendo PDF do Cília...', 'warn');
@@ -1559,79 +1551,56 @@ async function _ciliaProcessarPDF(file) {
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let textoTotal = '';
 
-    // ── Coleta todos os spans com posição (x, y) para reconstruir linhas ──
-    const allSpans = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const tc = await page.getTextContent();
-      tc.items.forEach(item => {
-        allSpans.push({
-          text: item.str,
-          x: Math.round(item.transform[4]),
-          y: Math.round(item.transform[5])
-        });
-      });
+      const content = await page.getTextContent();
+      // Ordena por posição vertical para manter linhas juntas
+      const items = content.items.sort((a, b) => (b.transform[5] - a.transform[5]) || (a.transform[4] - b.transform[4]));
+      let lastY = null;
+      for (const item of items) {
+        const y = Math.round(item.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 5) textoTotal += '\n';
+        textoTotal += item.str + ' ';
+        lastY = y;
+      }
+      textoTotal += '\n';
     }
 
-    // Agrupa spans por linha (mesma coordenada Y ±3px), ordenado por X
-    const linhasMap = {};
-    allSpans.forEach(sp => {
-      const yKey = Math.round(sp.y / 3) * 3;
-      if (!linhasMap[yKey]) linhasMap[yKey] = [];
-      linhasMap[yKey].push(sp);
-    });
-    const linhasOrdenadas = Object.keys(linhasMap)
-      .map(Number)
-      .sort((a, b) => b - a) // PDF: Y cresce de baixo para cima
-      .map(y => linhasMap[y].sort((a, b) => a.x - b.x).map(s => s.text).join(' ').trim())
-      .filter(Boolean);
-
+    // Tenta extrair linhas com padrão: CODIGO  DESCRICAO  QTD  VALOR
+    // Ex: "5207381  AMORTECEDOR DIANT DIR  1  285,90"
     const pecas = [];
+    const linhas = textoTotal.split('\n').map(l => l.trim()).filter(Boolean);
 
-    for (const linha of linhasOrdenadas) {
-      // ── PADRÃO PRINCIPAL DO CÍLIA ──────────────────────────────────
-      // Ex: "T R&I 0,00 1.00 BOMBA DE COMBUSTÍVEL Cód: 172029382R Oficina R$ 1.795,30 % 48,00 R$ 933,56"
-      // Captura: operação | qtd | descrição | código | preço bruto | % desconto | preço líquido
-      const mCilia = linha.match(
-        /(?:T|R)\s+R&I\s+[\d,\.]+\s+([\d,\.]+)\s+(.+?)\s+Cód:\s*([A-Z0-9\-\.]+)\s+Oficina\s+R\$\s*([\d\.,]+)\s+%\s*([\d,\.]+)\s+R\$\s*([\d\.,]+)/i
-      );
-      if (mCilia) {
-        const qtd   = parseFloat(mCilia[1].replace(',','.')) || 1;
-        const desc  = mCilia[2].trim();
-        const cod   = mCilia[3].trim();
-        const pBruto = parseFloat(mCilia[4].replace(/\./g,'').replace(',','.')) || 0;
-        const pLiq   = parseFloat(mCilia[6].replace(/\./g,'').replace(',','.')) || 0;
-        // Usa preço líquido (já com desconto do contrato)
-        pecas.push({ codigo: cod, desc, qtd, venda: pLiq > 0 ? pLiq : pBruto });
-        continue;
-      }
-
-      // ── PADRÃO SIMPLES (sem operação T/R&I) ──────────────────────
-      // Ex: "172029382R  BOMBA DE COMBUSTÍVEL  1  R$ 933,56"
-      const mSimples = linha.match(/^([A-Z0-9\-\.\/]{4,25})\s{2,}(.+?)\s{2,}(\d+(?:[,\.]\d+)?)\s+R\$\s*([\d\.,]+)/);
-      if (mSimples) {
-        const vStr = mSimples[4].replace(/\./g,'').replace(',','.');
+    for (const linha of linhas) {
+      // Padrão Cília: código alfanumérico, descrição, qtd inteiro, valor decimal
+      const m = linha.match(/^([A-Z0-9\-\.]{4,20})\s{2,}(.+?)\s{2,}(\d+)\s{2,}([\d\.,]+)\s*$/);
+      if (m) {
+        const vStr = m[4].replace(/\./g, '').replace(',', '.');
         pecas.push({
-          codigo: mSimples[1].trim(),
-          desc:   mSimples[2].trim(),
-          qtd:    parseFloat(mSimples[3].replace(',','.')) || 1,
+          codigo: m[1].trim(),
+          desc:   m[2].trim(),
+          qtd:    parseInt(m[3]) || 1,
           venda:  parseFloat(vStr) || 0
         });
         continue;
       }
-
-      // ── PADRÃO LEGADO (espaços duplos) ────────────────────────────
-      // Ex: "5207381  AMORTECEDOR DIANT DIR  1  285,90"
-      const mLeg = linha.match(/^([A-Z0-9\-\.]{4,20})\s{2,}(.+?)\s{2,}(\d+)\s{2,}([\d\.,]+)\s*$/);
-      if (mLeg) {
-        const vStr = mLeg[4].replace(/\./g,'').replace(',','.');
-        pecas.push({ codigo: mLeg[1].trim(), desc: mLeg[2].trim(), qtd: parseInt(mLeg[3])||1, venda: parseFloat(vStr)||0 });
+      // Padrão alternativo: só código + descrição + valor (sem qtd explícita)
+      const m2 = linha.match(/^([A-Z0-9\-\.]{4,20})\s{2,}(.+?)\s{2,}([\d\.,]+)\s*$/);
+      if (m2) {
+        const vStr = m2[3].replace(/\./g, '').replace(',', '.');
+        pecas.push({
+          codigo: m2[1].trim(),
+          desc:   m2[2].trim(),
+          qtd:    1,
+          venda:  parseFloat(vStr) || 0
+        });
       }
     }
 
     if (!pecas.length) {
-      if (typeof window.toast === 'function') window.toast('Não foi possível extrair peças do PDF. Exporte do Cília em XML para melhor resultado.', 'warn');
+      if (typeof window.toast === 'function') window.toast('Não foi possível extrair peças do PDF. Verifique o formato do Cília ou use XML.', 'warn');
       return;
     }
     _ciliaAdicionarPecas(pecas);
@@ -1639,4 +1608,3 @@ async function _ciliaProcessarPDF(file) {
     if (typeof window.toast === 'function') window.toast('Erro ao ler PDF Cília: ' + err.message, 'err');
   }
 }
-
